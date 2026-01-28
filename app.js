@@ -14,6 +14,7 @@ const CONFIG = {
     ],
     TARGET_URL: 'https://api.stock.naver.com/marketindex/exchanges',
     GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
+    BACKUP_API: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/krw.json',
     UPDATE_INTERVAL: 5 * 60 * 1000
 };
 
@@ -168,6 +169,21 @@ async function fetchExchangeRates() {
     }
 
     if (!success) {
+        try {
+            const res = await fetch(CONFIG.BACKUP_API);
+            if (res.ok) {
+                const data = await res.json();
+                processBackupData(data);
+                state.lastUpdated = new Date();
+                updateRateStatus('백업 서버 가동중 (약간의 오차 가능)');
+                success = true;
+            }
+        } catch (e) {
+            console.warn('Backup failed:', e);
+        }
+    }
+
+    if (!success) {
         processExchangeData(FALLBACK_DATA);
         updateRateStatus('오프라인 모드 (기본값 사용)');
     }
@@ -176,6 +192,49 @@ async function fetchExchangeRates() {
         renderCurrencyOptions(state.currencyList);
         selectCurrency(state.selectedCurrency);
     }
+}
+
+function processBackupData(data) {
+    state.exchangeRates = {};
+    state.currencyList = [];
+
+    // data.krw contains rates relative to 1 KRW (e.g. usd: 0.00075)
+    // We need KRW per 1 Unit (e.g. 1 USD = 1/0.00075 = 1333)
+
+    Object.keys(CURRENCY_NAMES).forEach(code => {
+        const key = code.toLowerCase();
+        const val = data.krw ? data.krw[key] : null;
+        if (val) {
+            const rate = 1 / val;
+            let displayRate = rate;
+
+            // JPY, VND, IDR are typically shown per 100 units in UI, but logic uses per 1 unit
+            if (['JPY', 'VND', 'IDR'].includes(code)) {
+                displayRate = rate * 100;
+            }
+
+            const currencyObj = {
+                code: code,
+                name: CURRENCY_NAMES[code].name,
+                nationName: CURRENCY_NAMES[code].nation,
+                rate: rate,
+                displayRate: formatNumber(displayRate, 2)
+            };
+
+            state.exchangeRates[code] = currencyObj;
+            state.currencyList.push(currencyObj);
+        }
+    });
+
+    const majors = ['USD', 'EUR', 'JPY', 'CNY', 'GBP', 'VND', 'IDR'];
+    state.currencyList.sort((a, b) => {
+        const idxA = majors.indexOf(a.code);
+        const idxB = majors.indexOf(b.code);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.nationName.localeCompare(b.nationName);
+    });
 }
 
 function processExchangeData(rawData) {
