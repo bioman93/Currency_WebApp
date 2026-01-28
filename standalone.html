@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="실시간 환율 계산기 - 현지 화폐를 대한민국 원화로 즉시 변환">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>실시간 환율 계산기 (단독실행)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Inline CSS -->
+    <style>
+        /* ===================================
+   CSS Variables & Theme
+   =================================== */
+        :root {
+            /* Colors - Dark Theme */
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: rgba(30, 30, 50, 0.8);
+            --bg-input: rgba(255, 255, 255, 0.05);
+
+            /* Accent Colors */
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --accent-glow: rgba(99, 102, 241, 0.3);
+
+            /* Text Colors */
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-tertiary: rgba(255, 255, 255, 0.5);
+
+            /* Success/Result */
+            --result-bg: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --result-glow: rgba(16, 185, 129, 0.3);
+
+            /* Borders & Shadows */
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --glass-blur: blur(20px);
+
+            /* Spacing */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+
+            /* Border Radius */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+
+            /* Typography */
+            --font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-md: 1rem;
+            --font-size-lg: 1.25rem;
+            --font-size-xl: 1.5rem;
+            --font-size-2xl: 2rem;
+            --font-size-3xl: 2.5rem;
+
+            /* Transitions */
+            --transition-fast: 150ms ease;
+            --transition-normal: 250ms ease;
+            --transition-slow: 350ms ease;
+        }
+
+        /* Light Theme */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #f5f5f7;
+                --bg-secondary: #ffffff;
+                --bg-card: rgba(255, 255, 255, 0.9);
+                --bg-input: rgba(0, 0, 0, 0.05);
+                --text-primary: #1a1a2e;
+                --text-secondary: rgba(26, 26, 46, 0.7);
+                --text-tertiary: rgba(26, 26, 46, 0.5);
+                --border-color: rgba(0, 0, 0, 0.1);
+                --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+                --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+                --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+            }
+        }
+
+        /* ===================================
+   Reset & Base Styles
+   =================================== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 16px;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            min-height: 100dvh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ===================================
+   App Container
+   =================================== */
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-md);
+            padding-top: env(safe-area-inset-top, var(--spacing-md));
+            padding-bottom: env(safe-area-inset-bottom, var(--spacing-md));
+        }
+
+        /* ===================================
+   Header
+   =================================== */
+        .app-header {
+            text-align: center;
+            padding: var(--spacing-lg) 0;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-md);
+        }
+
+        .app-title {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .refresh-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .refresh-btn:hover {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            transform: rotate(180deg);
+        }
+
+        .refresh-btn:active {
+            transform: rotate(180deg) scale(0.95);
+        }
+
+        .rate-info {
+            margin-top: var(--spacing-sm);
+            font-size: var(--font-size-xs);
+            color: var(--text-tertiary);
+        }
+
+        /* ===================================
+   Calculator Main
+   =================================== */
+        .calculator-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .section-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        /* ===================================
+   Currency Section
+   =================================== */
+        .currency-section {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .currency-selector {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .current-rate {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-input);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .current-rate strong {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        .rate-unit {
+            color: var(--text-tertiary);
+        }
+
+        .location-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: transparent;
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-tertiary);
+            font-size: var(--font-size-sm);
+            font-family: var(--font-family);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .location-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        /* ===================================
+   Amount Section
+   =================================== */
+        .amount-section {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .amount-input-wrapper {
+            display: flex;
+            align-items: center;
+            background: var(--bg-input);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            transition: all var(--transition-fast);
+        }
+
+        .amount-input-wrapper:focus-within {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .currency-symbol {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--text-tertiary);
+            margin-right: var(--spacing-sm);
+        }
+
+        .amount-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            font-family: var(--font-family);
+            color: var(--text-primary);
+            text-align: right;
+        }
+
+        .amount-input:focus {
+            outline: none;
+        }
+
+        .amount-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        /* Remove spinner for number input */
+        .amount-input::-webkit-outer-spin-button,
+        .amount-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .amount-input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* ===================================
+   Options Section
+   =================================== */
+        .options-section {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .options-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            font-family: var(--font-family);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .options-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        .toggle-icon {
+            font-size: var(--font-size-xs);
+            transition: transform var(--transition-normal);
+        }
+
+        .toggle-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .options-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height var(--transition-normal);
+        }
+
+        .options-content.open {
+            max-height: 400px;
+        }
+
+        .option-group {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .option-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .option-row {
+            display: flex;
+            gap: var(--spacing-md);
+            align-items: center;
+        }
+
+        .option-type-selector {
+            display: flex;
+            background: var(--bg-input);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        .type-btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: transparent;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            font-family: var(--font-family);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .type-btn.active {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .option-input-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+        }
+
+        .option-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: var(--font-size-md);
+            font-family: var(--font-family);
+            color: var(--text-primary);
+            text-align: right;
+            width: 60px;
+        }
+
+        .option-input:focus {
+            outline: none;
+        }
+
+        .option-input::-webkit-outer-spin-button,
+        .option-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .option-unit {
+            font-size: var(--font-size-sm);
+            color: var(--text-tertiary);
+            margin-left: var(--spacing-xs);
+        }
+
+        /* ===================================
+   Result Section
+   =================================== */
+        .result-section {
+            background: var(--result-bg);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-xl);
+            text-align: center;
+            box-shadow: var(--shadow-lg), 0 0 40px var(--result-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+
+            0%,
+            100% {
+                transform: translateX(-30%) translateY(-30%);
+            }
+
+            50% {
+                transform: translateX(10%) translateY(10%);
+            }
+        }
+
+        .result-label {
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: var(--spacing-sm);
+            position: relative;
+        }
+
+        .result-amount {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: var(--spacing-xs);
+            position: relative;
+        }
+
+        .result-symbol {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .result-value {
+            font-size: var(--font-size-3xl);
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -1px;
+        }
+
+        .result-breakdown {
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: var(--font-size-xs);
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+            text-align: left;
+            position: relative;
+        }
+
+        .result-breakdown .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-xs) 0;
+        }
+
+        .result-breakdown .breakdown-total {
+            font-weight: 600;
+            color: #ffffff;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            margin-top: var(--spacing-xs);
+            padding-top: var(--spacing-sm);
+        }
+
+        /* ===================================
+   Footer
+   =================================== */
+        .app-footer {
+            text-align: center;
+            padding: var(--spacing-lg) 0;
+            font-size: var(--font-size-xs);
+            color: var(--text-tertiary);
+        }
+
+        .disclaimer {
+            margin-top: var(--spacing-xs);
+            font-size: 0.65rem;
+        }
+
+        /* ===================================
+   Responsive Design
+   =================================== */
+
+        /* Small phones */
+        @media (max-width: 360px) {
+            :root {
+                --font-size-3xl: 2rem;
+                --font-size-2xl: 1.5rem;
+            }
+
+            .app-container {
+                padding: var(--spacing-sm);
+            }
+        }
+
+        /* Landscape mode */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .app-container {
+                max-width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: var(--spacing-md);
+                padding: var(--spacing-sm) var(--spacing-lg);
+            }
+
+            .app-header {
+                width: 100%;
+                padding: var(--spacing-sm) 0;
+                margin-bottom: 0;
+            }
+
+            .calculator-main {
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: flex-start;
+            }
+
+            .currency-section,
+            .amount-section {
+                flex: 1;
+                min-width: 280px;
+            }
+
+            .options-section,
+            .result-section {
+                flex: 1;
+                min-width: 280px;
+            }
+
+            .app-footer {
+                width: 100%;
+                padding: var(--spacing-sm) 0;
+            }
+        }
+
+        /* Tablet and larger */
+        @media (min-width: 768px) {
+            .app-container {
+                max-width: 600px;
+                padding: var(--spacing-xl);
+            }
+
+            :root {
+                --font-size-3xl: 3rem;
+            }
+        }
+
+        /* Foldable devices */
+        @media (horizontal-viewport-segments: 2) {
+            .app-container {
+                max-width: 100%;
+            }
+
+            .calculator-main {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: var(--spacing-lg);
+            }
+
+            .result-section {
+                grid-column: span 2;
+            }
+        }
+
+        /* Safe area for notched devices */
+        @supports (padding: max(0px)) {
+            .app-container {
+                padding-left: max(var(--spacing-md), env(safe-area-inset-left));
+                padding-right: max(var(--spacing-md), env(safe-area-inset-right));
+            }
+        }
+
+        /* New Interactive Currency UI */
+        .currency-interaction-wrapper {
+            position: relative;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .currency-display {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: var(--spacing-md) 0;
+            cursor: pointer;
+            border-bottom: 2px solid var(--border-color);
+            transition: all var(--transition-fast);
+        }
+
+        .currency-display:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .display-text {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 80%;
+        }
+
+        .edit-hint {
+            font-size: var(--font-size-xs);
+            color: var(--accent-primary);
+            opacity: 0.7;
+            transition: opacity var(--transition-fast);
+        }
+
+        .currency-search-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--accent-primary);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-input-container {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .main-search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            font-size: var(--font-size-md);
+            color: var(--text-primary);
+            padding: var(--spacing-sm);
+        }
+
+        .main-search-input:focus {
+            outline: none;
+        }
+
+        .close-search-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: var(--font-size-lg);
+            cursor: pointer;
+            padding: var(--spacing-xs);
+        }
+
+        .dropdown-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .option-item {
+            padding: 12px;
+            cursor: pointer;
+            transition: background var(--transition-fast);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-primary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .option-item:last-child {
+            border-bottom: none;
+        }
+
+        .option-item:hover,
+        .option-item.selected {
+            background: var(--bg-input);
+            color: var(--accent-primary);
+        }
+
+        .option-info {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .option-name {
+            font-weight: 500;
+        }
+
+        .option-code {
+            font-size: 0.8em;
+            color: var(--text-tertiary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">💱 환율 계산기</h1>
+                <button id="refreshRateBtn" class="refresh-btn" aria-label="환율 새로고침">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6" />
+                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                    </svg>
+                </button>
+            </div>
+            <div class="rate-info">
+                <span id="rateUpdateTime">환율 정보 로딩 중...</span>
+            </div>
+        </header>
+
+        <!-- Main Calculator Section -->
+        <main class="calculator-main">
+            <!-- Amount Input -->
+            <section class="amount-section">
+                <label for="localAmount" class="section-label">현지 금액</label>
+                <div class="amount-input-wrapper">
+                    <span class="currency-symbol" id="currencySymbol">$</span>
+                    <input type="text" id="localAmount" class="amount-input" placeholder="0" inputmode="decimal"
+                        autocomplete="off">
+                </div>
+            </section>
+
+            <!-- Result Section -->
+            <section class="result-section">
+                <div class="result-label">대한민국 원화</div>
+                <div class="result-amount">
+                    <span class="result-symbol">₩</span>
+                    <span class="result-value" id="resultValue">0</span>
+                </div>
+                <div class="result-breakdown" id="resultBreakdown">
+                    <!-- Breakdown injected by JS -->
+                </div>
+            </section>
+
+            <!-- Options Section -->
+            <section class="options-section">
+                <button class="options-toggle" id="optionsToggle">
+                    <span>추가 옵션</span>
+                    <span class="toggle-icon" id="toggleIcon">▼</span>
+                </button>
+
+                <div class="options-content" id="optionsContent">
+                    <!-- Service Charge -->
+                    <div class="option-group">
+                        <label class="option-label">서비스차지 (팁)</label>
+                        <div class="option-row">
+                            <div class="option-type-selector">
+                                <button class="type-btn active" data-type="percent" id="tipPercentBtn">%</button>
+                                <button class="type-btn" data-type="fixed" id="tipFixedBtn">정액</button>
+                            </div>
+                            <div class="option-input-wrapper">
+                                <input type="text" id="serviceCharge" class="option-input" placeholder="0"
+                                    inputmode="decimal" autocomplete="off">
+                                <span class="option-unit" id="serviceChargeUnit">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tax Rate -->
+                    <div class="option-group">
+                        <label class="option-label">세금율</label>
+                        <div class="option-input-wrapper">
+                            <input type="text" id="taxRate" class="option-input" placeholder="0" inputmode="decimal"
+                                autocomplete="off">
+                            <span class="option-unit">%</span>
+                        </div>
+                    </div>
+
+                    <!-- Fee Rate -->
+                    <div class="option-group">
+                        <label class="option-label">수수료율</label>
+                        <div class="option-input-wrapper">
+                            <input type="text" id="feeRate" class="option-input" placeholder="0" inputmode="decimal"
+                                autocomplete="off">
+                            <span class="option-unit">%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Currency Selection -->
+            <section class="currency-section">
+                <div class="currency-selector">
+                    <label class="section-label">현지 화폐 변경</label>
+                    <div class="currency-interaction-wrapper">
+                        <!-- Display Mode -->
+                        <div id="currencyDisplay" class="currency-display" role="button" tabindex="0">
+                            <span id="selectedCurrencyText" class="display-text">미국 (USD)</span>
+                            <span class="edit-hint">✎ 변경</span>
+                        </div>
+
+                        <!-- Input Mode -->
+                        <div id="currencySearchWrapper" class="currency-search-wrapper" style="display: none;">
+                            <div class="search-input-container">
+                                <input type="text" id="currencySearchInput" class="main-search-input"
+                                    placeholder="국가명 또는 화폐명 검색..." autocomplete="off">
+                                <button id="closeSearchBtn" class="close-search-btn" aria-label="닫기">✕</button>
+                            </div>
+
+                            <div class="dropdown-list" id="currencyOptionsList">
+                                <!-- Options populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="detectLocationBtn" class="location-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="3" />
+                            <line x1="12" y1="2" x2="12" y2="6" />
+                            <line x1="12" y1="18" x2="12" y2="22" />
+                            <line x1="18" y1="12" x2="22" y2="12" />
+                            <line x1="18" y1="12" x2="22" y2="12" />
+                        </svg>
+                        <span>현재 위치로 찾기</span>
+                    </button>
+
+                    <div class="current-rate" style="margin-top: 10px;">
+                        <span>적용 환율: </span>
+                        <strong id="currentRateDisplay">-</strong>
+                        <span class="rate-unit">원</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>환율 정보: 하나은행 고시 기준 (오프라인 시 근사값)</p>
+            <p class="disclaimer">※ 실제 환전 시 환율은 다를 수 있습니다</p>
+        </footer>
+    </div>
+
+    <!-- Inline JS -->
+    <script>
+        /**
+         * 환율 계산기 앱 - Standalone Bundle
+         */
+
+        // ===================================
+        // Configuration & Constants
+        // ===================================
+
+        const CONFIG = {
+            PROXIES: [
+                'https://corsproxy.io/?',
+                'https://api.allorigins.win/raw?url='
+            ],
+            TARGET_URL: 'https://api.stock.naver.com/marketindex/exchanges',
+            GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
+            UPDATE_INTERVAL: 5 * 60 * 1000
+        };
+
+        const FALLBACK_DATA = [
+            { "symbolCode": "USD", "name": "미국 USD", "stockExchangeType": { "nationCode": "USA", "nationName": "미국" }, "calcPrice": "1423.80", "closePrice": "1,423.80", "unit": "KRW" },
+            { "symbolCode": "EUR", "name": "유럽 EUR", "stockExchangeType": { "nationCode": "EU", "nationName": "유럽연합" }, "calcPrice": "1708.63", "closePrice": "1,708.63", "unit": "KRW" },
+            { "symbolCode": "JPY", "name": "일본 JPY (100엔)", "stockExchangeType": { "nationCode": "JPN", "nationName": "일본" }, "calcPrice": "933.24", "closePrice": "933.24", "unit": "KRW" },
+            { "symbolCode": "CNY", "name": "중국 CNY", "stockExchangeType": { "nationCode": "CHN", "nationName": "중국" }, "calcPrice": "205.21", "closePrice": "205.21", "unit": "KRW" },
+            { "symbolCode": "HKD", "name": "홍콩 HKD", "stockExchangeType": { "nationCode": "HKG", "nationName": "홍콩" }, "calcPrice": "182.50", "closePrice": "182.50", "unit": "KRW" },
+            { "symbolCode": "TWD", "name": "대만 TWD", "stockExchangeType": { "nationCode": "TWN", "nationName": "대만" }, "calcPrice": "44.80", "closePrice": "44.80", "unit": "KRW" },
+            { "symbolCode": "GBP", "name": "영국 GBP", "stockExchangeType": { "nationCode": "GBR", "nationName": "영국" }, "calcPrice": "1800.50", "closePrice": "1,800.50", "unit": "KRW" },
+            { "symbolCode": "CAD", "name": "캐나다 CAD", "stockExchangeType": { "nationCode": "CAN", "nationName": "캐나다" }, "calcPrice": "1050.20", "closePrice": "1,050.20", "unit": "KRW" },
+            { "symbolCode": "CHF", "name": "스위스 CHF", "stockExchangeType": { "nationCode": "CHE", "nationName": "스위스" }, "calcPrice": "1580.40", "closePrice": "1,580.40", "unit": "KRW" },
+            { "symbolCode": "AUD", "name": "호주 AUD", "stockExchangeType": { "nationCode": "AUS", "nationName": "호주" }, "calcPrice": "920.30", "closePrice": "920.30", "unit": "KRW" },
+            { "symbolCode": "SGD", "name": "싱가포르 SGD", "stockExchangeType": { "nationCode": "SGP", "nationName": "싱가포르" }, "calcPrice": "1050.80", "closePrice": "1,050.80", "unit": "KRW" },
+            { "symbolCode": "THB", "name": "태국 THB", "stockExchangeType": { "nationCode": "THA", "nationName": "태국" }, "calcPrice": "41.50", "closePrice": "41.50", "unit": "KRW" },
+            { "symbolCode": "IDR", "name": "인도네시아 IDR 100", "stockExchangeType": { "nationCode": "IDN", "nationName": "인도네시아" }, "calcPrice": "9.00", "closePrice": "9.00", "unit": "KRW" },
+            { "symbolCode": "VND", "name": "베트남 VND 100", "stockExchangeType": { "nationCode": "VNM", "nationName": "베트남" }, "calcPrice": "6.00", "closePrice": "6.00", "unit": "KRW" },
+            { "symbolCode": "MYR", "name": "말레이시아 MYR", "stockExchangeType": { "nationCode": "MYS", "nationName": "말레이시아" }, "calcPrice": "318.50", "closePrice": "318.50", "unit": "KRW" },
+            { "symbolCode": "PHP", "name": "필리핀 PHP", "stockExchangeType": { "nationCode": "PHL", "nationName": "필리핀" }, "calcPrice": "25.20", "closePrice": "25.20", "unit": "KRW" },
+            { "symbolCode": "ZAR", "name": "남아공 ZAR", "stockExchangeType": { "nationCode": "ZAF", "nationName": "남아프리카공화국" }, "calcPrice": "78.50", "closePrice": "78.50", "unit": "KRW" },
+            { "symbolCode": "RUB", "name": "러시아 RUB", "stockExchangeType": { "nationCode": "RUS", "nationName": "러시아" }, "calcPrice": "15.20", "closePrice": "15.20", "unit": "KRW" },
+            { "symbolCode": "TRY", "name": "튀르키예 TRY", "stockExchangeType": { "nationCode": "TUR", "nationName": "튀르키예" }, "calcPrice": "40.50", "closePrice": "40.50", "unit": "KRW" },
+            { "symbolCode": "BRL", "name": "브라질 BRL", "stockExchangeType": { "nationCode": "BRA", "nationName": "브라질" }, "calcPrice": "245.20", "closePrice": "245.20", "unit": "KRW" },
+            { "symbolCode": "MXN", "name": "멕시코 MXN", "stockExchangeType": { "nationCode": "MEX", "nationName": "멕시코" }, "calcPrice": "72.10", "closePrice": "72.10", "unit": "KRW" },
+            { "symbolCode": "AED", "name": "UAE AED", "stockExchangeType": { "nationCode": "ARE", "nationName": "아랍에미리트" }, "calcPrice": "387.60", "closePrice": "387.60", "unit": "KRW" },
+            { "symbolCode": "INR", "name": "인도 INR", "stockExchangeType": { "nationCode": "IND", "nationName": "인도" }, "calcPrice": "16.80", "closePrice": "16.80", "unit": "KRW" },
+            { "symbolCode": "SAR", "name": "사우디 SAR", "stockExchangeType": { "nationCode": "SAU", "nationName": "사우디아라비아" }, "calcPrice": "379.50", "closePrice": "379.50", "unit": "KRW" },
+            { "symbolCode": "NZD", "name": "뉴질랜드 NZD", "stockExchangeType": { "nationCode": "NZL", "nationName": "뉴질랜드" }, "calcPrice": "850.20", "closePrice": "850.20", "unit": "KRW" },
+            { "symbolCode": "CZK", "name": "체코 CZK", "stockExchangeType": { "nationCode": "CZE", "nationName": "체코" }, "calcPrice": "60.50", "closePrice": "60.50", "unit": "KRW" },
+            { "symbolCode": "PLN", "name": "폴란드 PLN", "stockExchangeType": { "nationCode": "POL", "nationName": "폴란드" }, "calcPrice": "355.40", "closePrice": "355.40", "unit": "KRW" },
+            { "symbolCode": "HUF", "name": "헝가리 HUF", "stockExchangeType": { "nationCode": "HUN", "nationName": "헝가리" }, "calcPrice": "3.80", "closePrice": "3.80", "unit": "KRW" }
+        ];
+
+        const CURRENCY_NAMES = {
+            'USD': { name: '미국 달러', nation: '미국' },
+            'EUR': { name: '유럽 유로', nation: '유럽연합' },
+            'JPY': { name: '일본 엔', nation: '일본' },
+            'CNY': { name: '중국 위안', nation: '중국' },
+            'HKD': { name: '홍콩 달러', nation: '홍콩' },
+            'TWD': { name: '대만 달러', nation: '대만' },
+            'GBP': { name: '영국 파운드', nation: '영국' },
+            'CAD': { name: '캐나다 달러', nation: '캐나다' },
+            'CHF': { name: '스위스 프랑', nation: '스위스' },
+            'SEK': { name: '스웨덴 크로나', nation: '스웨덴' },
+            'AUD': { name: '호주 달러', nation: '호주' },
+            'NZD': { name: '뉴질랜드 달러', nation: '뉴질랜드' },
+            'CZK': { name: '체코 코루나', nation: '체코' },
+            'TRY': { name: '튀르키예 리라', nation: '튀르키예' },
+            'MXN': { name: '멕시코 페소', nation: '멕시코' },
+            'PLN': { name: '폴란드 즈워티', nation: '폴란드' },
+            'AED': { name: 'UAE 디르함', nation: '아랍에미리트' },
+            'SGD': { name: '싱가포르 달러', nation: '싱가포르' },
+            'THB': { name: '태국 바트', nation: '태국' },
+            'MYR': { name: '말레이시아 링깃', nation: '말레이시아' },
+            'IDR': { name: '인도네시아 루피아', nation: '인도네시아' },
+            'VND': { name: '베트남 동', nation: '베트남' },
+            'PHP': { name: '필리핀 페소', nation: '필리핀' },
+            'RUB': { name: '러시아 루블', nation: '러시아' },
+            'ZAR': { name: '남아공 랜드', nation: '남아프리카공화국' },
+            'BRL': { name: '브라질 레알', nation: '브라질' },
+            'INR': { name: '인도 루피', nation: '인도' },
+            'SAR': { name: '사우디 리얄', nation: '사우디아라비아' },
+            'KWD': { name: '쿠웨이트 디나르', nation: '쿠웨이트' },
+            'BHD': { name: '바레인 디나르', nation: '바레인' },
+            'QAR': { name: '카타르 리얄', nation: '카타르' },
+            'EGP': { name: '이집트 파운드', nation: '이집트' },
+            'HUF': { name: '헝가리 포린트', nation: '헝가리' },
+            'DKK': { name: '덴마크 크로네', nation: '덴마크' },
+            'NOK': { name: '노르웨이 크로네', nation: '노르웨이' },
+            'ILS': { name: '이스라엘 셰켈', nation: '이스라엘' },
+            'JOD': { name: '요르단 디나르', nation: '요르단' },
+            'PKR': { name: '파키스탄 루피', nation: '파키스탄' },
+            'BDT': { name: '방글라데시 타카', nation: '방글라데시' },
+            'MNT': { name: '몽골 투그릭', nation: '몽골' },
+            'KZT': { name: '카자흐스탄 텡게', nation: '카자흐스탄' },
+            'BND': { name: '브루나이 달러', nation: '브루나이' }
+        };
+
+        // ===================================
+        // State & Elements
+        // ===================================
+
+        const state = {
+            exchangeRates: {},
+            currencyList: [],
+            lastUpdated: null,
+            selectedCurrency: 'USD',
+            serviceChargeType: 'percent',
+            isOptionsOpen: false,
+            isSearchOpen: false
+        };
+
+        const elements = {
+            currencyDisplay: document.getElementById('currencyDisplay'),
+            selectedCurrencyText: document.getElementById('selectedCurrencyText'),
+            currencySearchWrapper: document.getElementById('currencySearchWrapper'),
+            currencySearchInput: document.getElementById('currencySearchInput'),
+            closeSearchBtn: document.getElementById('closeSearchBtn'),
+            currencyOptionsList: document.getElementById('currencyOptionsList'),
+            currentRateDisplay: document.getElementById('currentRateDisplay'),
+            detectLocationBtn: document.getElementById('detectLocationBtn'),
+            localAmount: document.getElementById('localAmount'),
+            currencySymbol: document.getElementById('currencySymbol'),
+            optionsToggle: document.getElementById('optionsToggle'),
+            optionsContent: document.getElementById('optionsContent'),
+            toggleIcon: document.getElementById('toggleIcon'),
+            serviceCharge: document.getElementById('serviceCharge'),
+            serviceChargeUnit: document.getElementById('serviceChargeUnit'),
+            tipPercentBtn: document.getElementById('tipPercentBtn'),
+            tipFixedBtn: document.getElementById('tipFixedBtn'),
+            taxRate: document.getElementById('taxRate'),
+            feeRate: document.getElementById('feeRate'),
+            resultValue: document.getElementById('resultValue'),
+            resultBreakdown: document.getElementById('resultBreakdown'),
+            refreshRateBtn: document.getElementById('refreshRateBtn'),
+            rateUpdateTime: document.getElementById('rateUpdateTime')
+        };
+
+        // ===================================
+        // Main Logic
+        // ===================================
+
+        async function fetchExchangeRates() {
+            updateRateStatus('환율 정보 연결 중...');
+            let success = false;
+
+            // Check if we are running in file:// mode
+            const isLocalFile = window.location.protocol === 'file:';
+
+            // If local file, might fail CORS checks even with proxy due to null origin
+            // We try anyway, but if it fails, we immediately fallback.
+
+            for (const proxy of CONFIG.PROXIES) {
+                try {
+                    const url = proxy + encodeURIComponent(CONFIG.TARGET_URL);
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    let ratesData;
+                    if (proxy.includes('allorigins') && !proxy.includes('raw')) {
+                        const data = await response.json();
+                        ratesData = JSON.parse(data.contents);
+                    } else {
+                        ratesData = await response.json();
+                    }
+
+                    if (!ratesData || !Array.isArray(ratesData)) throw new Error('Invalid data');
+
+                    processExchangeData(ratesData);
+                    state.lastUpdated = new Date();
+                    updateRateStatus(`업데이트: ${formatTime(state.lastUpdated)}`);
+                    success = true;
+                    break;
+                } catch (e) {
+                    console.warn(`Proxy ${proxy} failed:`, e);
+                }
+            }
+
+            if (!success) {
+                processExchangeData(FALLBACK_DATA);
+                updateRateStatus('오프라인 모드 (기본값 사용)');
+            }
+
+            if (state.currencyList.length > 0) {
+                renderCurrencyOptions(state.currencyList);
+                selectCurrency(state.selectedCurrency);
+            }
+        }
+
+        function processExchangeData(rawData) {
+            state.exchangeRates = {};
+            state.currencyList = [];
+            const processedCodes = new Set();
+
+            rawData.forEach(item => {
+                if (!item.symbolCode || !item.calcPrice) return;
+                const code = item.symbolCode;
+                if (processedCodes.has(code)) return;
+
+                let rate = parseFloat(item.calcPrice.replace(/,/g, ''));
+                if (isNaN(rate)) return;
+
+                let finalRate = rate;
+                if (['JPY', 'VND', 'IDR'].includes(code)) {
+                    finalRate = rate / 100;
+                }
+
+                const mapped = CURRENCY_NAMES[code] || {};
+                const nationName = mapped.nation || item.stockExchangeType?.nationName || getCountryFromCode(code);
+                const currencyName = mapped.name || item.name || code;
+
+                const currencyObj = {
+                    code: code,
+                    name: currencyName,
+                    nationName: nationName,
+                    rate: finalRate,
+                    displayRate: item.closePrice
+                };
+                state.exchangeRates[code] = currencyObj;
+                state.currencyList.push(currencyObj);
+                processedCodes.add(code);
+            });
+
+            const majors = ['USD', 'EUR', 'JPY', 'CNY', 'GBP', 'VND', 'IDR'];
+            state.currencyList.sort((a, b) => {
+                const idxA = majors.indexOf(a.code);
+                const idxB = majors.indexOf(b.code);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.nationName.localeCompare(b.nationName);
+            });
+        }
+
+        function renderCurrencyOptions(list) {
+            elements.currencyOptionsList.innerHTML = '';
+            if (list.length === 0) {
+                elements.currencyOptionsList.innerHTML = '<div class="no-results">검색 결과가 없습니다</div>';
+                return;
+            }
+            list.forEach(item => {
+                const option = document.createElement('div');
+                option.className = 'option-item';
+                if (item.code === state.selectedCurrency) option.classList.add('selected');
+
+                option.innerHTML = `
+            <div class="option-info">
+                <span class="option-name">${item.nationName}</span>
+                <span class="option-code">(${item.code})</span>
+            </div>
+            ${item.code === state.selectedCurrency ? '<span style="color:var(--accent-primary)">✔</span>' : ''}
+        `;
+                option.addEventListener('click', () => selectCurrency(item.code));
+                elements.currencyOptionsList.appendChild(option);
+            });
+        }
+
+        function selectCurrency(code) {
+            if (!state.exchangeRates[code]) return;
+            state.selectedCurrency = code;
+            const data = state.exchangeRates[code];
+
+            elements.selectedCurrencyText.textContent = `${data.nationName} (${data.code})`;
+
+            let rateText = formatNumber(data.rate, 2);
+            if (['JPY', 'VND', 'IDR'].includes(code)) {
+                elements.currentRateDisplay.textContent = `${data.displayRate} (100${code})`;
+            } else {
+                elements.currentRateDisplay.textContent = rateText;
+            }
+
+            elements.currencySymbol.textContent = getCurrencySymbol(code);
+
+            if (state.serviceChargeType === 'fixed') {
+                elements.serviceChargeUnit.textContent = getCurrencySymbol(code);
+            }
+
+            closeSearch();
+            calculate();
+        }
+
+        function openSearch() {
+            state.isSearchOpen = true;
+            elements.currencyDisplay.style.display = 'none';
+            elements.currencySearchWrapper.style.display = 'block';
+            elements.currencySearchInput.value = '';
+            renderCurrencyOptions(state.currencyList);
+            elements.currencySearchInput.focus();
+        }
+
+        function closeSearch() {
+            state.isSearchOpen = false;
+            elements.currencySearchWrapper.style.display = 'none';
+            elements.currencyDisplay.style.display = 'flex';
+        }
+
+        function filterCurrencyList(query) {
+            const lowerQuery = query.toLowerCase();
+            const filtered = state.currencyList.filter(item =>
+                item.code.toLowerCase().includes(lowerQuery) ||
+                item.name.toLowerCase().includes(lowerQuery) ||
+                item.nationName.toLowerCase().includes(lowerQuery)
+            );
+            renderCurrencyOptions(filtered);
+        }
+
+        function handleNumberInput(e) {
+            let value = e.target.value.replace(/[^0-9.]/g, '');
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+            if (parts[0]) {
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            }
+            const formatted = parts.join('.');
+            if (e.target.value !== formatted) {
+                e.target.value = formatted;
+            }
+            calculate();
+        }
+
+        function calculate() {
+            const localAmount = parseFloat(elements.localAmount.value.replace(/,/g, '')) || 0;
+            const serviceChargeInput = parseFloat(elements.serviceCharge.value.replace(/,/g, '')) || 0;
+            const taxRate = parseFloat(elements.taxRate.value.replace(/,/g, '')) || 0;
+            const feeRate = parseFloat(elements.feeRate.value.replace(/,/g, '')) || 0;
+
+            if (!state.exchangeRates[state.selectedCurrency]) return;
+            const exchangeRate = state.exchangeRates[state.selectedCurrency].rate;
+
+            let serviceCharge = 0;
+            if (state.serviceChargeType === 'percent') {
+                serviceCharge = localAmount * (serviceChargeInput / 100);
+            } else {
+                serviceCharge = serviceChargeInput;
+            }
+
+            const withService = localAmount + serviceCharge;
+            const withTax = withService * (1 + taxRate / 100);
+            const withFee = withTax * (1 + feeRate / 100);
+            const resultKRW = withFee * exchangeRate;
+
+            elements.resultValue.textContent = formatNumber(Math.round(resultKRW));
+
+            updateBreakdown({
+                localAmount, serviceCharge, withService, taxRate,
+                withTax, feeRate, withFee, exchangeRate, resultKRW
+            });
+        }
+
+        function updateBreakdown(data) {
+            const symbol = getCurrencySymbol(state.selectedCurrency);
+            let html = '';
+            if (data.localAmount > 0) {
+                html = `
+            <div class="breakdown-item"><span>기본 금액</span><span>${symbol}${formatNumber(data.localAmount, 2)}</span></div>
+        `;
+                if (data.serviceCharge > 0) html += itemRow('+ 서비스차지', data.serviceCharge, symbol);
+                if (data.taxRate > 0) html += itemRow(`+ 세금 (${data.taxRate}%)`, data.withService * (data.taxRate / 100), symbol);
+                if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
+                html += `
+            <div class="breakdown-item"><span>현지 총액</span><span>${symbol}${formatNumber(data.withFee, 2)}</span></div>
+            <div class="breakdown-item breakdown-total"><span>원화 환산</span><span>₩${formatNumber(Math.round(data.resultKRW))}</span></div>
+        `;
+            }
+            elements.resultBreakdown.innerHTML = html;
+        }
+
+        function itemRow(label, value, symbol) {
+            return `<div class="breakdown-item"><span>${label}</span><span>${symbol}${formatNumber(value, 2)}</span></div>`;
+        }
+
+        function getCountryFromCode(currencyCode) {
+            const map = { 'USD': '미국', 'KRW': '한국', 'EUR': '유럽', 'JPY': '일본', 'CNY': '중국' };
+            return map[currencyCode] || currencyCode;
+        }
+
+        function getCurrencySymbol(code) {
+            const symbols = {
+                'USD': '$', 'EUR': '€', 'JPY': '¥', 'CNY': '¥', 'GBP': '£',
+                'KRW': '₩', 'THB': '฿', 'VND': '₫', 'PHP': '₱', 'INR': '₹'
+            };
+            return symbols[code] || code;
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatNumber(num, decimals = 0) {
+            return num.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function updateRateStatus(message) {
+            elements.rateUpdateTime.textContent = message;
+        }
+
+        function initEventListeners() {
+            elements.currencyDisplay.addEventListener('click', openSearch);
+            elements.closeSearchBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeSearch();
+            });
+            elements.currencySearchInput.addEventListener('input', (e) => filterCurrencyList(e.target.value));
+
+            document.addEventListener('click', (e) => {
+                if (state.isSearchOpen &&
+                    !elements.currencySearchWrapper.contains(e.target) &&
+                    !elements.currencyDisplay.contains(e.target)) {
+                    closeSearch();
+                }
+            });
+
+            elements.localAmount.addEventListener('input', handleNumberInput);
+            elements.serviceCharge.addEventListener('input', handleNumberInput);
+            elements.taxRate.addEventListener('input', handleNumberInput);
+            elements.feeRate.addEventListener('input', handleNumberInput);
+
+            elements.optionsToggle.addEventListener('click', () => {
+                state.isOptionsOpen = !state.isOptionsOpen;
+                elements.optionsContent.classList.toggle('open', state.isOptionsOpen);
+                elements.toggleIcon.classList.toggle('open', state.isOptionsOpen);
+            });
+
+            elements.tipPercentBtn.addEventListener('click', () => {
+                state.serviceChargeType = 'percent';
+                elements.tipPercentBtn.classList.add('active');
+                elements.tipFixedBtn.classList.remove('active');
+                elements.serviceChargeUnit.textContent = '%';
+                calculate();
+            });
+            elements.tipFixedBtn.addEventListener('click', () => {
+                state.serviceChargeType = 'fixed';
+                elements.tipFixedBtn.classList.add('active');
+                elements.tipPercentBtn.classList.remove('active');
+                elements.serviceChargeUnit.textContent = getCurrencySymbol(state.selectedCurrency);
+                calculate();
+            });
+
+            elements.refreshRateBtn.addEventListener('click', fetchExchangeRates);
+            elements.detectLocationBtn.addEventListener('click', detectLocation);
+        }
+
+        async function detectLocation() {
+            if (!navigator.geolocation) { alert('미지원'); return; }
+            elements.detectLocationBtn.innerHTML = '<span>⏳ 감지 중...</span>';
+            try {
+                const position = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+                const { latitude, longitude } = position.coords;
+                const res = await fetch(`${CONFIG.GEO_API}?latitude=${latitude}&longitude=${longitude}&localityLanguage=ko`);
+                const data = await res.json();
+                const countryCode = data.countryCode;
+                const found = state.currencyList.find(c => c.code.startsWith(countryCode) || c.nationName === data.countryName);
+                if (found) { selectCurrency(found.code); alert(`📍 ${data.countryName} 감지 완료`); }
+                else { alert(`📍 ${data.countryName} 감지됨 (화폐 정보 없음)`); }
+            } catch (e) {
+                console.error(e);
+                // Silent failure in offline mode usually to avoid annoying alerts, but here we show alert
+                alert('위치 감지 실패 (오프라인일 수 있음)');
+            } finally {
+                elements.detectLocationBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+            </svg><span>현재 위치로 찾기</span>
+        `;
+            }
+        }
+
+        function init() {
+            initEventListeners();
+            fetchExchangeRates();
+            setInterval(fetchExchangeRates, CONFIG.UPDATE_INTERVAL);
+            calculate();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
