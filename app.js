@@ -10,12 +10,14 @@
 const CONFIG = {
     PROXIES: [
         'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url='
+        'https://api.allorigins.win/raw?url=',
+        'https://thingproxy.freeboard.io/fetch/'
     ],
     TARGET_URL: 'https://api.stock.naver.com/marketindex/exchanges',
     GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
     BACKUP_API: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/krw.json',
-    UPDATE_INTERVAL: 5 * 60 * 1000
+    UPDATE_INTERVAL: 0, // 0 = Disable auto-refresh to rely on cache until user action
+    CACHE_KEY: 'exchange_rates_cache_v1'
 };
 
 const FALLBACK_DATA = [
@@ -138,29 +140,68 @@ const elements = {
 // Main Logic
 // ===================================
 
-async function fetchExchangeRates() {
+async function fetchExchangeRates(forceUpdate = false) {
+    // 1. Try to load from cache first if not forced
+    if (!forceUpdate) {
+        const cached = localStorage.getItem(CONFIG.CACHE_KEY);
+        if (cached) {
+            try {
+                const { data, timestamp } = JSON.parse(cached);
+                // Check if valid (e.g. not older than 7 days, or just keep indefinitely as requested)
+                // User said "until refreshed", so we assume indefinite validity is desired for data saving.
+                processExchangeData(data);
+                state.lastUpdated = new Date(timestamp);
+                updateRateStatus(`저장된 데이터: ${formatTime(state.lastUpdated)}`);
+
+                if (state.currencyList.length > 0) {
+                    renderCurrencyOptions(state.currencyList);
+                    selectCurrency(state.selectedCurrency);
+                }
+                return; // Exit, no network used
+            } catch (e) {
+                console.warn('Cache invalid', e);
+                localStorage.removeItem(CONFIG.CACHE_KEY);
+            }
+        }
+    }
+
     updateRateStatus('환율 정보 연결 중...');
     let success = false;
+    let fetchedData = null;
 
+    // Check if we are running in file:// mode
+    const isLocalFile = window.location.protocol === 'file:';
+
+    // 2. Try Proxies
     for (const proxy of CONFIG.PROXIES) {
         try {
             const url = proxy + encodeURIComponent(CONFIG.TARGET_URL);
-            constresponse = await fetch(url);
+            // Add timeout signal to fail fast
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout per proxy
+
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             let ratesData;
-            if (proxy.includes('allorigins') && !proxy.includes('raw')) {
-                const data = await response.json();
-                ratesData = JSON.parse(data.contents);
+            // Handle different proxy response formats
+            if (proxy.includes('allorigins') || proxy.includes('thingproxy')) {
+                // Some proxies might return wrapped JSON or just raw. 
+                // Thingproxy returns raw usually. Allorigins with 'raw' returns raw.
+                // We kept 'raw' param in config for allorigins.
+                ratesData = await response.json();
+                // If wrapped in contents (standard allorigins without raw), handle it.
+                if (ratesData.contents) ratesData = JSON.parse(ratesData.contents);
             } else {
                 ratesData = await response.json();
             }
 
             if (!ratesData || !Array.isArray(ratesData)) throw new Error('Invalid data');
 
+            fetchedData = ratesData;
             processExchangeData(ratesData);
-            state.lastUpdated = new Date();
-            updateRateStatus(`업데이트: ${formatTime(state.lastUpdated)}`);
             success = true;
             break;
         } catch (e) {
@@ -168,14 +209,21 @@ async function fetchExchangeRates() {
         }
     }
 
+    // 3. Backup API (Fawaz)
     if (!success) {
         try {
             const res = await fetch(CONFIG.BACKUP_API);
             if (res.ok) {
                 const data = await res.json();
-                processBackupData(data);
+                processBackupData(data); // This processes AND sets state
+                // Note: We don't have the original array structure for caching if we rely on processBackupData
+                // But for simplicity, we skip caching backup data or we construct it?
+                // processBackupData modifies state.currencyList directly.
+                // We'll just set success=true. 
+                // However, caching backup data is harder because format differs.
+                // Let's NOT cache backup data to encourage retrying primary source on next load.
                 state.lastUpdated = new Date();
-                updateRateStatus('백업 서버 가동중 (약간의 오차 가능)');
+                updateRateStatus('백업 서버 가동중 (저장 안됨)');
                 success = true;
             }
         } catch (e) {
@@ -183,14 +231,34 @@ async function fetchExchangeRates() {
         }
     }
 
+    // 4. Fallback (Offline hardcoded)
     if (!success) {
         processExchangeData(FALLBACK_DATA);
         updateRateStatus('오프라인 모드 (기본값 사용)');
+    } else if (fetchedData) {
+        // Only cache if we successfully got primary data
+        state.lastUpdated = new Date();
+        updateRateStatus(`업데이트: ${formatTime(state.lastUpdated)}`);
+
+        try {
+            const cachePayload = {
+                data: fetchedData,
+                timestamp: state.lastUpdated.getTime()
+            };
+            localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(cachePayload));
+        } catch (e) {
+            console.warn('Cache write failed', e);
+        }
     }
 
     if (state.currencyList.length > 0) {
         renderCurrencyOptions(state.currencyList);
-        selectCurrency(state.selectedCurrency);
+        // Do not reset selection if it exists and valid
+        if (!state.exchangeRates[state.selectedCurrency]) {
+            selectCurrency('USD');
+        } else {
+            selectCurrency(state.selectedCurrency);
+        }
     }
 }
 
@@ -516,25 +584,37 @@ function initEventListeners() {
         calculate();
     });
 
-    elements.refreshRateBtn.addEventListener('click', fetchExchangeRates);
-    elements.detectLocationBtn.addEventListener('click', detectLocation);
+    elements.refreshRateBtn.addEventListener('click', () => fetchExchangeRates(true));
+    elements.detectLocationBtn.addEventListener('click', () => detectLocation(true));
 }
 
-async function detectLocation() {
-    if (!navigator.geolocation) { alert('미지원'); return; }
-    elements.detectLocationBtn.innerHTML = '<span>⏳ 감지 중...</span>';
+async function detectLocation(interactive = false) {
+    if (!navigator.geolocation) {
+        if (interactive) alert('미지원 브라우저입니다.');
+        return;
+    }
+
+    if (interactive) elements.detectLocationBtn.innerHTML = '<span>⏳ 감지 중...</span>';
+
     try {
-        const position = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+        const position = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
         const { latitude, longitude } = position.coords;
         const res = await fetch(`${CONFIG.GEO_API}?latitude=${latitude}&longitude=${longitude}&localityLanguage=ko`);
         const data = await res.json();
 
         const countryCode = data.countryCode;
         const found = state.currencyList.find(c => c.code.startsWith(countryCode) || c.nationName === data.countryName);
-        if (found) { selectCurrency(found.code); alert(`📍 ${data.countryName} 감지 완료`); }
-        else { alert(`📍 ${data.countryName} 감지됨 (화폐 정보 없음)`); }
-    } catch (e) { console.error(e); alert('위치 감지 실패'); }
-    finally {
+
+        if (found) {
+            selectCurrency(found.code);
+            if (interactive) alert(`📍 ${data.countryName} 감지 완료`);
+        } else {
+            if (interactive) alert(`📍 ${data.countryName} 감지됨 (화폐 정보 없음)`);
+        }
+    } catch (e) {
+        console.error(e);
+        if (interactive) alert('위치 감지 실패');
+    } finally {
         elements.detectLocationBtn.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
@@ -545,8 +625,19 @@ async function detectLocation() {
 
 function init() {
     initEventListeners();
-    fetchExchangeRates();
-    setInterval(fetchExchangeRates, CONFIG.UPDATE_INTERVAL);
+    fetchExchangeRates(false).then(() => {
+        // Auto-detect location on first load if we have data (cached or fetched)
+        // We only do this if it's the very first run? 
+        // Or every time? User said "When app starts... detect location".
+        // But we shouldn't override if user selected something else?
+        // Let's do it every time on init.
+        // But detectLocation is async.
+        setTimeout(() => detectLocation(false), 1000);
+    });
+
+    if (CONFIG.UPDATE_INTERVAL > 0) {
+        setInterval(() => fetchExchangeRates(true), CONFIG.UPDATE_INTERVAL);
+    }
     calculate();
 }
 
