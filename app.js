@@ -108,7 +108,9 @@ const state = {
     selectedCurrency: 'USD',
     serviceChargeType: 'percent',
     isOptionsOpen: false,
-    isSearchOpen: false
+    isOptionsOpen: false,
+    isSearchOpen: false,
+    detectedTimeZone: null
 };
 
 const elements = {
@@ -224,7 +226,7 @@ async function fetchExchangeRates(forceUpdate = false) {
                 // However, caching backup data is harder because format differs.
                 // Let's NOT cache backup data to encourage retrying primary source on next load.
                 state.lastUpdated = new Date();
-                updateRateStatus('업데이트 (Global Standard API)');
+                updateRateStatus(`업데이트 (Global Standard API): ${formatTime(state.lastUpdated)}`);
                 success = true;
             }
         } catch (e) {
@@ -539,12 +541,20 @@ function getCurrencySymbol(code) {
 }
 
 function formatTime(date) {
-    return date.toLocaleTimeString('ko-KR', {
+    const options = {
         month: 'numeric',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-    });
+    };
+    if (state.detectedTimeZone) {
+        try {
+            options.timeZone = state.detectedTimeZone;
+        } catch (e) {
+            console.warn('Invalid TimeZone:', state.detectedTimeZone);
+        }
+    }
+    return date.toLocaleTimeString('ko-KR', options);
 }
 
 function formatNumber(num, decimals = 0) {
@@ -622,6 +632,14 @@ async function detectLocation(interactive = false) {
         const { latitude, longitude } = position.coords;
         const res = await fetch(`${CONFIG.GEO_API}?latitude=${latitude}&longitude=${longitude}&localityLanguage=ko`);
         const data = await res.json();
+
+        // Extract TimeZone from informative block (look for "Area/City" pattern)
+        if (data.localityInfo && data.localityInfo.informative) {
+            const tzEntry = data.localityInfo.informative.find(i => i.name && i.name.includes('/') && !i.name.includes(' '));
+            if (tzEntry) {
+                state.detectedTimeZone = tzEntry.name;
+            }
+        }
 
         const countryCode = data.countryCode;
         const found = state.currencyList.find(c => c.code.startsWith(countryCode) || c.nationName === data.countryName);
