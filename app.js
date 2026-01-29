@@ -15,7 +15,7 @@ const CONFIG = {
     ],
     TARGET_URL: 'https://api.stock.naver.com/marketindex/exchanges',
     GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
-    BACKUP_API: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/krw.json',
+    BACKUP_API: 'https://open.er-api.com/v6/latest/KRW',
     UPDATE_INTERVAL: 0, // 0 = Disable auto-refresh to rely on cache until user action
     CACHE_KEY: 'exchange_rates_cache_v1'
 };
@@ -146,12 +146,12 @@ async function fetchExchangeRates(forceUpdate = false) {
         const cached = localStorage.getItem(CONFIG.CACHE_KEY);
         if (cached) {
             try {
-                const { data, timestamp } = JSON.parse(cached);
+                const { data, timestamp, source } = JSON.parse(cached); // Retrieve source from cache
                 // Check if valid (e.g. not older than 7 days, or just keep indefinitely as requested)
                 // User said "until refreshed", so we assume indefinite validity is desired for data saving.
                 processExchangeData(data);
                 state.lastUpdated = new Date(timestamp);
-                updateRateStatus(`저장된 데이터: ${formatTime(state.lastUpdated)}`);
+                updateRateStatus(`저장된 데이터 (${source || 'Cache'}): ${formatTime(state.lastUpdated)}`);
 
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
@@ -223,7 +223,7 @@ async function fetchExchangeRates(forceUpdate = false) {
                 // However, caching backup data is harder because format differs.
                 // Let's NOT cache backup data to encourage retrying primary source on next load.
                 state.lastUpdated = new Date();
-                updateRateStatus('백업 서버 가동중 (저장 안됨)');
+                updateRateStatus('업데이트 (Global Standard API)');
                 success = true;
             }
         } catch (e) {
@@ -238,12 +238,25 @@ async function fetchExchangeRates(forceUpdate = false) {
     } else if (fetchedData) {
         // Only cache if we successfully got primary data
         state.lastUpdated = new Date();
-        updateRateStatus(`업데이트: ${formatTime(state.lastUpdated)}`);
+        // Check where we got data from
+        // If we processed backup, updateRateStatus was called in backup block
+        // We need to ensure correct source display
+        // Note: ExchangeRate-API returns { result: 'success' ... }, Naver returns Array.
+
+        let finalSource = 'Unknown';
+        if (Array.isArray(fetchedData)) {
+            finalSource = 'Naver/Hana Bank';
+        } else if (fetchedData.result === 'success' || fetchedData.rates) {
+            finalSource = 'Global Standard API';
+        }
+
+        updateRateStatus(`업데이트 (${finalSource}): ${formatTime(state.lastUpdated)}`);
 
         try {
             const cachePayload = {
                 data: fetchedData,
-                timestamp: state.lastUpdated.getTime()
+                timestamp: state.lastUpdated.getTime(),
+                source: finalSource
             };
             localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(cachePayload));
         } catch (e) {
@@ -266,12 +279,14 @@ function processBackupData(data) {
     state.exchangeRates = {};
     state.currencyList = [];
 
-    // data.krw contains rates relative to 1 KRW (e.g. usd: 0.00075)
-    // We need KRW per 1 Unit (e.g. 1 USD = 1/0.00075 = 1333)
+    // ExchangeRate-API returns rates relative to base (KRW)
+    // "rates": { "USD": 0.00075, ... } -> 1 KRW = 0.00075 USD
+    // We need KRW per 1 Unit -> 1 / 0.00075
+
+    const rates = data.rates || {};
 
     Object.keys(CURRENCY_NAMES).forEach(code => {
-        const key = code.toLowerCase();
-        const val = data.krw ? data.krw[key] : null;
+        const val = rates[code];
         if (val) {
             const rate = 1 / val;
             let displayRate = rate;
@@ -625,19 +640,23 @@ async function detectLocation(interactive = false) {
 
 function init() {
     initEventListeners();
-    fetchExchangeRates(false).then(() => {
-        // Auto-detect location on first load if we have data (cached or fetched)
-        // We only do this if it's the very first run? 
-        // Or every time? User said "When app starts... detect location".
-        // But we shouldn't override if user selected something else?
-        // Let's do it every time on init.
-        // But detectLocation is async.
-        setTimeout(() => detectLocation(false), 1000);
+
+    // User requested "Location First" flow to reduce perceived data usage (even if packet is same)
+    // and to set context before fetching.
+    updateRateStatus('위치 정보 확인 중...');
+
+    // We try detectLocation first. If it fails or times out, we proceed.
+    detectLocation(false).then(() => {
+        // After location check, fetch data.
+        // If location found, `selectedCurrency` might be updated.
+        // Then fetchExchangeRates will use that selection.
+        fetchExchangeRates(false);
     });
 
     if (CONFIG.UPDATE_INTERVAL > 0) {
         setInterval(() => fetchExchangeRates(true), CONFIG.UPDATE_INTERVAL);
     }
+    // Initial calculate call might be empty if no rates yet, but UI structure initializes.
     calculate();
 }
 
