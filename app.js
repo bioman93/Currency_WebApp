@@ -16,7 +16,7 @@ const CONFIG = {
     ],
     TARGET_URL: 'https://api.stock.naver.com/marketindex/exchanges',
     GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
-    BACKUP_API: 'https://open.er-api.com/v6/latest/KRW',
+    BACKUP_API: 'https://open.er-api.com/v6/latest/KRW', // Rates By Exchange Rate API (https://www.exchangerate-api.com)
     UPDATE_INTERVAL: 0, // 0 = Disable auto-refresh to rely on cache until user action
     CACHE_KEY: 'exchange_rates_cache_v1'
 };
