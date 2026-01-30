@@ -14,11 +14,12 @@ const CONFIG = {
         'https://api.allorigins.win/raw?url=',
         'https://thingproxy.freeboard.io/fetch/'
     ],
-    TARGET_URL: 'https://api.stock.naver.com/marketindex/exchanges',
+    // Swapped: Global Standard is now TARGET (Primary), Naver is BACKUP
+    TARGET_URL: 'https://open.er-api.com/v6/latest/KRW',
     GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
-    BACKUP_API: 'https://open.er-api.com/v6/latest/KRW', // Rates By Exchange Rate API (https://www.exchangerate-api.com)
-    UPDATE_INTERVAL: 0, // 0 = Disable auto-refresh to rely on cache until user action
-    CACHE_KEY: 'exchange_rates_cache_v1'
+    BACKUP_API: 'https://api.stock.naver.com/marketindex/exchanges', // Naver as Backup via Proxy
+    UPDATE_INTERVAL: 0,
+    CACHE_KEY: 'exchange_rates_cache_v2' // Version bump for new structure
 };
 
 const FALLBACK_DATA = [
@@ -144,27 +145,50 @@ const elements = {
 // ===================================
 
 async function fetchExchangeRates(forceUpdate = false) {
-    // 1. Try to load from cache first if not forced
-    if (!forceUpdate) {
-        const cached = localStorage.getItem(CONFIG.CACHE_KEY);
-        if (cached) {
-            try {
-                const { data, timestamp, source } = JSON.parse(cached); // Retrieve source from cache
-                // Check if valid (e.g. not older than 7 days, or just keep indefinitely as requested)
-                // User said "until refreshed", so we assume indefinite validity is desired for data saving.
-                processExchangeData(data);
+    // 1. Smart Cache Check
+    const cached = localStorage.getItem(CONFIG.CACHE_KEY);
+    let nextUpdateUnix = 0;
+
+    if (cached) {
+        try {
+            const { data, timestamp, source, nextUpdate } = JSON.parse(cached);
+
+            // "If data to bring is same... don't bring."
+            // Check nextUpdate time if available
+            const now = new Date().getTime();
+            if (nextUpdate && now < nextUpdate) {
+                // Data is still valid according to API promise
+                if (forceUpdate) {
+                    alert('현재 데이터가 최신입니다 (다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
+                }
+                processData(data); // Use cached
                 state.lastUpdated = new Date(timestamp);
-                updateRateStatus(`저장된 데이터 (${source || 'Cache'}): ${formatTime(state.lastUpdated)}`);
+                state.nextUpdate = nextUpdate; // Restore state
+                updateSourceInfo(source);
+                updateRateStatus(`최신 데이터 유지 중 (${source}): ${formatTime(state.lastUpdated)}`);
 
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
                     selectCurrency(state.selectedCurrency);
                 }
-                return; // Exit, no network used
-            } catch (e) {
-                console.warn('Cache invalid', e);
-                localStorage.removeItem(CONFIG.CACHE_KEY);
+                return;
             }
+
+            // If cache exists but might be old, use it initially if !forceUpdate
+            if (!forceUpdate) {
+                processData(data);
+                state.lastUpdated = new Date(timestamp);
+                updateSourceInfo(source);
+                updateRateStatus(`저장된 데이터 (${source}): ${formatTime(state.lastUpdated)}`);
+                if (state.currencyList.length > 0) {
+                    renderCurrencyOptions(state.currencyList);
+                    selectCurrency(state.selectedCurrency);
+                }
+                return;
+            }
+        } catch (e) {
+            console.warn('Cache invalid', e);
+            localStorage.removeItem(CONFIG.CACHE_KEY);
         }
     }
 
@@ -201,10 +225,10 @@ async function fetchExchangeRates(forceUpdate = false) {
                 ratesData = await response.json();
             }
 
-            if (!ratesData || !Array.isArray(ratesData)) throw new Error('Invalid data');
+            if (!ratesData || (!Array.isArray(ratesData) && !ratesData.rates && ratesData.result !== 'success')) throw new Error('Invalid data');
 
             fetchedData = ratesData;
-            processExchangeData(ratesData);
+            processData(ratesData); // Changed from processExchangeData
             success = true;
             break;
         } catch (e) {
@@ -212,21 +236,16 @@ async function fetchExchangeRates(forceUpdate = false) {
         }
     }
 
-    // 3. Backup API (Fawaz)
+    // 3. Backup API (Naver)
     if (!success) {
         try {
             const res = await fetch(CONFIG.BACKUP_API);
             if (res.ok) {
                 const data = await res.json();
-                processBackupData(data); // This processes AND sets state
-                // Note: We don't have the original array structure for caching if we rely on processBackupData
-                // But for simplicity, we skip caching backup data or we construct it?
-                // processBackupData modifies state.currencyList directly.
-                // We'll just set success=true. 
-                // However, caching backup data is harder because format differs.
-                // Let's NOT cache backup data to encourage retrying primary source on next load.
+                fetchedData = data; // Store for caching
+                processData(data); // Changed from processBackupData
                 state.lastUpdated = new Date();
-                updateRateStatus(`업데이트 (Global Standard API): ${formatTime(state.lastUpdated)}`);
+                // updateRateStatus(`업데이트 (Naver/Hana Bank): ${formatTime(state.lastUpdated)}`); // This will be handled by the common caching block
                 success = true;
             }
         } catch (e) {
@@ -236,30 +255,34 @@ async function fetchExchangeRates(forceUpdate = false) {
 
     // 4. Fallback (Offline hardcoded)
     if (!success) {
-        processExchangeData(FALLBACK_DATA);
+        processData(FALLBACK_DATA); // Changed from processExchangeData
         updateRateStatus('오프라인 모드 (기본값 사용)');
     } else if (fetchedData) {
-        // Only cache if we successfully got primary data
         state.lastUpdated = new Date();
-        // Check where we got data from
-        // If we processed backup, updateRateStatus was called in backup block
-        // We need to ensure correct source display
-        // Note: ExchangeRate-API returns { result: 'success' ... }, Naver returns Array.
 
         let finalSource = 'Unknown';
+        let nextUpdate = 0;
+
+        // determine source type
         if (Array.isArray(fetchedData)) {
             finalSource = 'Naver/Hana Bank';
+            // Naver doesn't give next update, assume 1 hour? Or just 0.
         } else if (fetchedData.result === 'success' || fetchedData.rates) {
             finalSource = 'Global Standard API';
+            if (fetchedData.time_next_update_unix) {
+                nextUpdate = fetchedData.time_next_update_unix * 1000;
+            }
         }
 
+        updateSourceInfo(finalSource);
         updateRateStatus(`업데이트 (${finalSource}): ${formatTime(state.lastUpdated)}`);
 
         try {
             const cachePayload = {
                 data: fetchedData,
                 timestamp: state.lastUpdated.getTime(),
-                source: finalSource
+                source: finalSource,
+                nextUpdate: nextUpdate
             };
             localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(cachePayload));
         } catch (e) {
@@ -323,7 +346,53 @@ function processBackupData(data) {
     });
 }
 
-function processExchangeData(rawData) {
+function processData(data) {
+    // Unify processing. Detect type.
+    if (Array.isArray(data)) {
+        processNaverData(data);
+    } else if (data.rates || (data.result === 'success')) {
+        processGlobalData(data);
+    }
+}
+
+function updateSourceInfo(sourceName) {
+    const footer = document.getElementById('sourceInfo');
+    if (footer) {
+        if (sourceName.includes('Naver')) {
+            footer.innerHTML = '환율 정보: 하나은행 (Naver)';
+        } else {
+            footer.innerHTML = '환율 정보: Global Standard API (ExchangeRate-API)';
+        }
+    }
+}
+
+function processGlobalData(data) {
+    state.exchangeRates = {};
+    state.currencyList = [];
+
+    const rates = data.rates || {};
+    Object.keys(CURRENCY_NAMES).forEach(code => {
+        const val = rates[code];
+        if (val) {
+            const rate = 1 / val;
+            let displayRate = rate;
+            if (['JPY', 'VND', 'IDR'].includes(code)) displayRate = rate * 100;
+
+            const currencyObj = {
+                code: code,
+                name: CURRENCY_NAMES[code].name,
+                nationName: CURRENCY_NAMES[code].nation,
+                rate: rate,
+                displayRate: formatNumber(displayRate, 2)
+            };
+            state.exchangeRates[code] = currencyObj;
+            state.currencyList.push(currencyObj);
+        }
+    });
+    sortCurrencyList();
+}
+
+function processNaverData(rawData) {
     state.exchangeRates = {};
     state.currencyList = [];
     const processedCodes = new Set();
@@ -337,9 +406,7 @@ function processExchangeData(rawData) {
         if (isNaN(rate)) return;
 
         let finalRate = rate;
-        if (['JPY', 'VND', 'IDR'].includes(code)) {
-            finalRate = rate / 100;
-        }
+        if (['JPY', 'VND', 'IDR'].includes(code)) finalRate = rate / 100;
 
         const mapped = CURRENCY_NAMES[code] || {};
         const nationName = mapped.nation || item.stockExchangeType?.nationName || getCountryFromCode(code);
@@ -356,7 +423,10 @@ function processExchangeData(rawData) {
         state.currencyList.push(currencyObj);
         processedCodes.add(code);
     });
+    sortCurrencyList();
+}
 
+function sortCurrencyList() {
     const majors = ['USD', 'EUR', 'JPY', 'CNY', 'GBP', 'VND', 'IDR'];
     state.currencyList.sort((a, b) => {
         const idxA = majors.indexOf(a.code);
