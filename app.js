@@ -708,7 +708,9 @@ function initEventListeners() {
             // If input exists and is less than base amount, warn user
             if (inputVal > 0 && inputVal < localAmount) {
                 alert('합산 금액은 기본 금액보다 커야 합니다.\n(팁을 포함한 총액을 입력해주세요)');
-                // Reset value or focus? No, let user decide.
+                setTimeout(() => {
+                    elements.serviceCharge.focus();
+                }, 10);
             }
         }
     });
