@@ -592,7 +592,13 @@ function updateBreakdown(data) {
         html = `
             <div class="breakdown-item"><span>기본 금액</span><span>${symbol}${formatNumber(data.localAmount, 2)}</span></div>
         `;
-        if (data.serviceCharge > 0) html += itemRow('+ 서비스차지', data.serviceCharge, symbol);
+        if (data.serviceCharge > 0) {
+            let scLabel = '+ 서비스차지';
+            if (state.serviceChargeType === 'percent') {
+                scLabel += ` (${elements.serviceCharge.value}%)`;
+            }
+            html += itemRow(scLabel, data.serviceCharge, symbol);
+        }
         if (data.taxRate > 0) html += itemRow(`+ 세금 (${data.taxRate}%)`, data.withService * (data.taxRate / 100), symbol);
         if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
 

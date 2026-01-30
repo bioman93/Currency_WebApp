@@ -483,16 +483,16 @@ body {
     position: static;
     transform: none;
 
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--border-color);
-    color: var(--text-tertiary);
-    /* Keep text-tertiary or secondary */
+    background: rgba(56, 222, 200, 0.2);
+    /* Visible Greenish Tint */
+    border: 1px solid rgba(56, 222, 200, 0.3);
+    color: var(--accent-primary);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     width: 24px;
-    /* Smaller */
     height: 24px;
-    border-radius: 50%;
+    border-radius: 6px;
+    /* Rounded Square */
 
     display: flex;
     align-items: center;
@@ -501,12 +501,15 @@ body {
 
     margin-left: var(--spacing-sm);
     flex-shrink: 0;
-    /* Don't shrink */
 
-    /* Visibility Logic: Reserved space but hidden */
+    /* Visibility Logic */
     visibility: hidden;
     opacity: 0;
     transition: all 0.2s;
+}
+
+.clear-btn:hover {
+    background: rgba(56, 222, 200, 0.4);
 }
 
 .clear-btn.visible {
