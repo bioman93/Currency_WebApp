@@ -159,9 +159,11 @@ async function fetchExchangeRates(forceUpdate = false) {
             if (nextUpdate && now < nextUpdate) {
                 // Data is still valid according to API promise
                 if (forceUpdate) {
+                    // Force blur before alert to remove button state on mobile
+                    if (document.activeElement) document.activeElement.blur();
                     setTimeout(() => {
                         alert('현재 데이터가 최신입니다.\n(다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
-                    }, 10);
+                    }, 100); // Slight increase in delay to ensure blur renders
                 }
                 processData(data); // Use cached
                 state.lastUpdated = new Date(timestamp);

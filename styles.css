@@ -104,7 +104,7 @@ body {
     justify-content: center;
 }
 
-@media (hover: hover) {
+@media (pointer: fine) {
     .refresh-btn:hover {
         background: var(--accent-primary);
         color: var(--text-primary);
