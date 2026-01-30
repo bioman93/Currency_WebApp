@@ -699,6 +699,20 @@ function initEventListeners() {
         });
     });
 
+    // Validation for Total Mode
+    elements.serviceCharge.addEventListener('blur', () => {
+        if (state.serviceChargeType === 'total') {
+            const localAmount = parseFloat(elements.localAmount.value.replace(/,/g, '')) || 0;
+            const inputVal = parseFloat(elements.serviceCharge.value.replace(/,/g, '')) || 0;
+
+            // If input exists and is less than base amount, warn user
+            if (inputVal > 0 && inputVal < localAmount) {
+                alert('합산 금액은 기본 금액보다 커야 합니다.\n(팁을 포함한 총액을 입력해주세요)');
+                // Reset value or focus? No, let user decide.
+            }
+        }
+    });
+
     // Clear Buttons
     document.querySelectorAll('.clear-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
