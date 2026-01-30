@@ -1489,7 +1489,15 @@ function initEventListeners() {
     });
 
     // Validation for Total Mode
-    elements.serviceCharge.addEventListener('blur', () => {
+    elements.serviceCharge.addEventListener('blur', (e) => {
+        // Skip validation if clicking Clear Button or Type Button
+        if (e.relatedTarget && (
+            e.relatedTarget.classList.contains('clear-btn') ||
+            e.relatedTarget.classList.contains('type-btn')
+        )) {
+            return;
+        }
+
         if (state.serviceChargeType === 'total') {
             const localAmount = parseFloat(elements.localAmount.value.replace(/,/g, '')) || 0;
             const inputVal = parseFloat(elements.serviceCharge.value.replace(/,/g, '')) || 0;
