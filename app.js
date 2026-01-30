@@ -568,8 +568,14 @@ function calculate() {
     let serviceCharge = 0;
     if (state.serviceChargeType === 'percent') {
         serviceCharge = localAmount * (serviceChargeInput / 100);
-    } else {
+    } else if (state.serviceChargeType === 'fixed') {
         serviceCharge = serviceChargeInput;
+    } else if (state.serviceChargeType === 'total') {
+        if (serviceChargeInput > localAmount) {
+            serviceCharge = serviceChargeInput - localAmount;
+        } else {
+            serviceCharge = 0;
+        }
     }
 
     const withService = localAmount + serviceCharge;
@@ -596,6 +602,10 @@ function updateBreakdown(data) {
             let scLabel = '+ 서비스차지';
             if (state.serviceChargeType === 'percent') {
                 scLabel += ` (${elements.serviceCharge.value}%)`;
+            } else if (state.serviceChargeType === 'fixed') {
+                scLabel += ` (정액)`;
+            } else if (state.serviceChargeType === 'total') {
+                scLabel += ` (합산)`;
             }
             html += itemRow(scLabel, data.serviceCharge, symbol);
         }
@@ -715,6 +725,7 @@ function initEventListeners() {
         state.serviceChargeType = 'percent';
         elements.tipPercentBtn.classList.add('active');
         elements.tipFixedBtn.classList.remove('active');
+        elements.tipTotalBtn.classList.remove('active');
         elements.serviceChargeUnit.textContent = '%';
         calculate();
     });
@@ -722,6 +733,15 @@ function initEventListeners() {
         state.serviceChargeType = 'fixed';
         elements.tipFixedBtn.classList.add('active');
         elements.tipPercentBtn.classList.remove('active');
+        elements.tipTotalBtn.classList.remove('active');
+        elements.serviceChargeUnit.textContent = getCurrencySymbol(state.selectedCurrency);
+        calculate();
+    });
+    elements.tipTotalBtn.addEventListener('click', () => {
+        state.serviceChargeType = 'total';
+        elements.tipTotalBtn.classList.add('active');
+        elements.tipPercentBtn.classList.remove('active');
+        elements.tipFixedBtn.classList.remove('active');
         elements.serviceChargeUnit.textContent = getCurrencySymbol(state.selectedCurrency);
         calculate();
     });
@@ -829,6 +849,8 @@ function loadOptions() {
                 state.serviceChargeType = options.serviceChargeType;
                 if (state.serviceChargeType === 'fixed') {
                     elements.tipFixedBtn.click();
+                } else if (state.serviceChargeType === 'total') {
+                    elements.tipTotalBtn.click();
                 } else {
                     elements.tipPercentBtn.click();
                 }
