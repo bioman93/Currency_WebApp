@@ -524,6 +524,8 @@ body {
     font-size: 11px;
     color: var(--text-tertiary);
     opacity: 0.7;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 32px);
+    /* Ensure clearance for Android Nav Bar */
 }
 
 .rate-info-footer {
