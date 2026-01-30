@@ -482,8 +482,7 @@ body {
     border: none;
     color: var(--text-primary);
     font-size: var(--font-size-sm);
-    padding: 8px 24px 8px 0;
-    /* Space for clear button */
+    padding: 8px 0;
     text-align: right;
     outline: none;
     width: 100%;
@@ -497,28 +496,44 @@ body {
 
 /* Clear Buttons */
 .clear-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: none;
+    /* Position Reset */
+    position: static;
+    transform: none;
+
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
     color: var(--text-tertiary);
-    font-size: 16px;
-    width: 30px;
-    height: 30px;
+    /* Keep text-tertiary or secondary */
+    font-size: 12px;
+    font-weight: 600;
+    width: 24px;
+    /* Smaller */
+    height: 24px;
+    border-radius: 50%;
+
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+
+    margin-left: var(--spacing-sm);
+    flex-shrink: 0;
+    /* Don't shrink */
+
+    /* Visibility Logic: Reserved space but hidden */
+    visibility: hidden;
     opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
+    transition: all 0.2s;
 }
 
 .clear-btn.visible {
+    visibility: visible;
     opacity: 1;
-    pointer-events: auto;
+}
+
+.option-clear {
+    right: auto;
+    /* Reset */
 }
 
 .option-clear {
@@ -644,7 +659,7 @@ body {
                     <span class="currency-symbol" id="currencySymbol">$</span>
                     <input type="text" id="localAmount" class="amount-input" placeholder="0" inputmode="decimal"
                         autocomplete="off">
-                    <button class="clear-btn" data-target="localAmount" aria-label="지우기">✕</button>
+                    <button class="clear-btn" data-target="localAmount" aria-label="지우기">C</button>
                 </div>
             </section>
 
@@ -679,9 +694,9 @@ body {
                             <div class="option-input-wrapper">
                                 <input type="text" id="serviceCharge" class="option-input" placeholder="0"
                                     inputmode="decimal" autocomplete="off">
-                                <button class="clear-btn option-clear" data-target="serviceCharge"
-                                    aria-label="지우기">✕</button>
                                 <span class="option-unit" id="serviceChargeUnit">%</span>
+                                <button class="clear-btn option-clear" data-target="serviceCharge"
+                                    aria-label="지우기">C</button>
                             </div>
                         </div>
                     </div>
@@ -692,8 +707,8 @@ body {
                         <div class="option-input-wrapper">
                             <input type="text" id="taxRate" class="option-input" placeholder="0" inputmode="decimal"
                                 autocomplete="off">
-                            <button class="clear-btn option-clear" data-target="taxRate" aria-label="지우기">✕</button>
                             <span class="option-unit">%</span>
+                            <button class="clear-btn option-clear" data-target="taxRate" aria-label="지우기">C</button>
                         </div>
                     </div>
 
@@ -703,8 +718,8 @@ body {
                         <div class="option-input-wrapper">
                             <input type="text" id="feeRate" class="option-input" placeholder="0" inputmode="decimal"
                                 autocomplete="off">
-                            <button class="clear-btn option-clear" data-target="feeRate" aria-label="지우기">✕</button>
                             <span class="option-unit">%</span>
+                            <button class="clear-btn option-clear" data-target="feeRate" aria-label="지우기">C</button>
                         </div>
                     </div>
                 </div>
