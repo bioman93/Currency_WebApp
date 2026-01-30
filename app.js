@@ -587,7 +587,6 @@ function updateBreakdown(data) {
 
         html += `
             <div class="breakdown-item"><span>현지 총액</span><span>${symbol}${formatNumber(data.withFee, 2)}</span></div>
-            <div class="breakdown-item breakdown-total"><span>원화 환산</span><span>₩${formatNumber(Math.round(data.resultKRW))}</span></div>
         `;
     }
     elements.resultBreakdown.innerHTML = html;
@@ -685,7 +684,10 @@ function initEventListeners() {
         calculate();
     });
 
-    elements.refreshRateBtn.addEventListener('click', () => fetchExchangeRates(true));
+    elements.refreshRateBtn.addEventListener('click', async () => {
+        await fetchExchangeRates(true);
+        elements.refreshRateBtn.blur();
+    });
     elements.detectLocationBtn.addEventListener('click', () => detectLocation(true));
 }
 

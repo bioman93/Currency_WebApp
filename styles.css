@@ -104,10 +104,12 @@ body {
     justify-content: center;
 }
 
-.refresh-btn:hover {
-    background: var(--accent-primary);
-    color: var(--text-primary);
-    transform: rotate(180deg);
+@media (hover: hover) {
+    .refresh-btn:hover {
+        background: var(--accent-primary);
+        color: var(--text-primary);
+        transform: rotate(180deg);
+    }
 }
 
 .refresh-btn:active {
