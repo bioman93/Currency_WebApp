@@ -159,7 +159,9 @@ async function fetchExchangeRates(forceUpdate = false) {
             if (nextUpdate && now < nextUpdate) {
                 // Data is still valid according to API promise
                 if (forceUpdate) {
-                    alert('현재 데이터가 최신입니다 (다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
+                    setTimeout(() => {
+                        alert('현재 데이터가 최신입니다.\n(다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
+                    }, 10);
                 }
                 processData(data); // Use cached
                 state.lastUpdated = new Date(timestamp);

@@ -369,9 +369,7 @@ body {
 /* ===================================
    Options Section (Collapsible)
    =================================== */
-.options-section {
-    /* margin-bottom handled by gap in main */
-}
+
 
 .options-toggle {
     display: flex;
