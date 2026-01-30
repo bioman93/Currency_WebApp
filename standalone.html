@@ -168,13 +168,9 @@ body {
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     box-shadow: var(--shadow-soft);
-    padding: var(--spacing-md);
-    box-shadow: var(--shadow-soft);
     margin-top: var(--spacing-lg);
-    /* Fixed margin instead of auto */
+    /* Fixed margin */
 }
-
-/* Make it stick to bottom on mobile input focus? No, keep standard flow */
 
 .currency-interaction-wrapper {
     position: relative;
@@ -310,7 +306,8 @@ body {
     color: var(--text-primary);
     font-size: var(--font-size-xxl);
     font-weight: 700;
-    padding: var(--spacing-sm) 0 var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-sm) 30px var(--spacing-sm) var(--spacing-lg);
+    /* Padding right for clear btn */
     text-align: right;
     outline: none;
     transition: all var(--transition-fast);
@@ -354,7 +351,7 @@ body {
 }
 
 .result-value {
-    font-size: 42px;
+    font-size: 36px;
     font-weight: 800;
     line-height: 1.1;
     background: var(--accent-gradient);
@@ -386,10 +383,8 @@ body {
 }
 
 /* ===================================
-   Options Section (Collapsible)
+   Options Section
    =================================== */
-
-
 .options-toggle {
     display: flex;
     align-items: center;
@@ -418,13 +413,12 @@ body {
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     gap: var(--spacing-md);
-    padding: var(--spacing-md);
-    gap: var(--spacing-md);
     flex-direction: column;
+    /* Updated layout */
 }
 
 .options-content.open {
-    display: grid;
+    display: flex;
 }
 
 .option-group {
@@ -437,6 +431,8 @@ body {
 }
 
 .option-label {
+    min-width: 80px;
+    /* Fixed width labels align nicer */
     font-size: var(--font-size-xs);
     color: var(--text-tertiary);
 }
@@ -481,14 +477,16 @@ body {
 }
 
 .option-input {
-    width: 100%;
+    flex: 1;
     background: transparent;
     border: none;
     color: var(--text-primary);
     font-size: var(--font-size-sm);
-    padding: 8px 0;
+    padding: 8px 24px 8px 0;
+    /* Space for clear button */
     text-align: right;
     outline: none;
+    width: 100%;
 }
 
 .option-unit {
@@ -497,8 +495,39 @@ body {
     color: var(--text-tertiary);
 }
 
+/* Clear Buttons */
+.clear-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.clear-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.option-clear {
+    right: 20px;
+    /* Adjust for unit */
+}
+
 /* ===================================
-   Location Button & Current Rate
+   Location & Footer
    =================================== */
 .location-btn {
     width: 100%;
@@ -515,10 +544,6 @@ body {
     margin-bottom: 4px;
 }
 
-.location-btn:hover {
-    text-decoration: underline;
-}
-
 .current-rate {
     text-align: center;
     font-size: var(--font-size-sm);
@@ -530,19 +555,14 @@ body {
     color: var(--text-tertiary);
 }
 
-/* ===================================
-   Footer
-   =================================== */
 .app-footer {
     margin-top: auto;
-    /* Push to bottom */
     text-align: center;
     padding-top: var(--spacing-lg);
     font-size: 11px;
     color: var(--text-tertiary);
     opacity: 0.7;
     padding-bottom: calc(env(safe-area-inset-bottom) + 32px);
-    /* Ensure clearance for Android Nav Bar */
 }
 
 .rate-info-footer {
@@ -550,16 +570,11 @@ body {
     margin-bottom: 4px;
 }
 
-/* ===================================
-   Small Screen Optimization
-   =================================== */
+/* Small Screen */
 @media (max-width: 480px) and (max-height: 800px) {
     :root {
-        /* Reduce Spacings */
         --spacing-lg: 16px;
         --spacing-md: 12px;
-
-        /* Reduce Font Sizes slightly */
         --font-size-xxl: 32px;
         --font-size-xl: 24px;
     }
@@ -569,17 +584,13 @@ body {
         margin-bottom: 8px;
     }
 
-    .app-title {
-        font-size: 20px;
-    }
-
     .calculator-main {
         gap: 16px;
     }
 
     .amount-input {
         font-size: 32px;
-        padding: 4px 0 4px 16px;
+        padding: 4px 30px 4px 16px;
     }
 
     .result-section {
@@ -592,10 +603,6 @@ body {
 
     .currency-section {
         padding: 12px;
-    }
-
-    .currency-display {
-        padding: 10px;
     }
 
     .options-content {
@@ -637,6 +644,7 @@ body {
                     <span class="currency-symbol" id="currencySymbol">$</span>
                     <input type="text" id="localAmount" class="amount-input" placeholder="0" inputmode="decimal"
                         autocomplete="off">
+                    <button class="clear-btn" data-target="localAmount" aria-label="지우기">✕</button>
                 </div>
             </section>
 
@@ -671,6 +679,8 @@ body {
                             <div class="option-input-wrapper">
                                 <input type="text" id="serviceCharge" class="option-input" placeholder="0"
                                     inputmode="decimal" autocomplete="off">
+                                <button class="clear-btn option-clear" data-target="serviceCharge"
+                                    aria-label="지우기">✕</button>
                                 <span class="option-unit" id="serviceChargeUnit">%</span>
                             </div>
                         </div>
@@ -682,6 +692,7 @@ body {
                         <div class="option-input-wrapper">
                             <input type="text" id="taxRate" class="option-input" placeholder="0" inputmode="decimal"
                                 autocomplete="off">
+                            <button class="clear-btn option-clear" data-target="taxRate" aria-label="지우기">✕</button>
                             <span class="option-unit">%</span>
                         </div>
                     </div>
@@ -692,6 +703,7 @@ body {
                         <div class="option-input-wrapper">
                             <input type="text" id="feeRate" class="option-input" placeholder="0" inputmode="decimal"
                                 autocomplete="off">
+                            <button class="clear-btn option-clear" data-target="feeRate" aria-label="지우기">✕</button>
                             <span class="option-unit">%</span>
                         </div>
                     </div>
@@ -868,8 +880,15 @@ const state = {
     serviceChargeType: 'percent',
     isOptionsOpen: false,
     isOptionsOpen: false,
+    isOptionsOpen: false,
     isSearchOpen: false,
-    detectedTimeZone: null
+    detectedTimeZone: null,
+    // Option values are now persistent
+    options: {
+        serviceCharge: 0,
+        taxRate: 0,
+        feeRate: 0
+    }
 };
 
 const elements = {
@@ -1419,11 +1438,36 @@ function initEventListeners() {
         }
     });
 
-    // Unified number input handler
-    elements.localAmount.addEventListener('input', handleNumberInput);
-    elements.serviceCharge.addEventListener('input', handleNumberInput);
-    elements.taxRate.addEventListener('input', handleNumberInput);
-    elements.feeRate.addEventListener('input', handleNumberInput);
+    // Unified number input handler with Persistence
+    elements.localAmount.addEventListener('input', (e) => {
+        handleNumberInput(e);
+        toggleClearBtn('localAmount', e.target.value);
+    });
+
+    ['serviceCharge', 'taxRate', 'feeRate'].forEach(id => {
+        elements[id].addEventListener('input', (e) => {
+            handleNumberInput(e);
+            toggleClearBtn(id, e.target.value);
+            saveOptions(); // Save on change
+        });
+    });
+
+    // Clear Buttons
+    document.querySelectorAll('.clear-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (input) {
+                input.value = '';
+                toggleClearBtn(targetId, '');
+                input.focus();
+                calculate(); // Recalculate
+                if (['serviceCharge', 'taxRate', 'feeRate'].includes(targetId)) {
+                    saveOptions(); // Save clear state
+                }
+            }
+        });
+    });
 
     elements.optionsToggle.addEventListener('click', () => {
         state.isOptionsOpen = !state.isOptionsOpen;
@@ -1511,11 +1555,63 @@ function init() {
         fetchExchangeRates(false);
     });
 
+    // Load saved options
+    loadOptions();
+
     if (CONFIG.UPDATE_INTERVAL > 0) {
         setInterval(() => fetchExchangeRates(true), CONFIG.UPDATE_INTERVAL);
     }
     // Initial calculate call might be empty if no rates yet, but UI structure initializes.
     calculate();
+
+    // Initial Toggle check
+    toggleClearBtn('localAmount', elements.localAmount.value);
+    toggleClearBtn('serviceCharge', elements.serviceCharge.value);
+    toggleClearBtn('taxRate', elements.taxRate.value);
+    toggleClearBtn('feeRate', elements.feeRate.value);
+}
+
+function saveOptions() {
+    const options = {
+        serviceCharge: elements.serviceCharge.value,
+        taxRate: elements.taxRate.value,
+        feeRate: elements.feeRate.value,
+        serviceChargeType: state.serviceChargeType
+    };
+    localStorage.setItem('currency_calculator_options', JSON.stringify(options));
+}
+
+function loadOptions() {
+    const saved = localStorage.getItem('currency_calculator_options');
+    if (saved) {
+        try {
+            const options = JSON.parse(saved);
+            if (options.serviceCharge !== undefined) elements.serviceCharge.value = options.serviceCharge;
+            if (options.taxRate !== undefined) elements.taxRate.value = options.taxRate;
+            if (options.feeRate !== undefined) elements.feeRate.value = options.feeRate;
+            if (options.serviceChargeType) {
+                state.serviceChargeType = options.serviceChargeType;
+                if (state.serviceChargeType === 'fixed') {
+                    elements.tipFixedBtn.click();
+                } else {
+                    elements.tipPercentBtn.click();
+                }
+            }
+        } catch (e) {
+            console.warn('Options load failed', e);
+        }
+    }
+}
+
+function toggleClearBtn(id, value) {
+    const btn = document.querySelector(`.clear-btn[data-target="${id}"]`);
+    if (btn) {
+        if (value && value.length > 0) {
+            btn.classList.add('visible');
+        } else {
+            btn.classList.remove('visible');
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', init);

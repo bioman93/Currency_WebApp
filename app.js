@@ -110,8 +110,15 @@ const state = {
     serviceChargeType: 'percent',
     isOptionsOpen: false,
     isOptionsOpen: false,
+    isOptionsOpen: false,
     isSearchOpen: false,
-    detectedTimeZone: null
+    detectedTimeZone: null,
+    // Option values are now persistent
+    options: {
+        serviceCharge: 0,
+        taxRate: 0,
+        feeRate: 0
+    }
 };
 
 const elements = {
@@ -661,11 +668,36 @@ function initEventListeners() {
         }
     });
 
-    // Unified number input handler
-    elements.localAmount.addEventListener('input', handleNumberInput);
-    elements.serviceCharge.addEventListener('input', handleNumberInput);
-    elements.taxRate.addEventListener('input', handleNumberInput);
-    elements.feeRate.addEventListener('input', handleNumberInput);
+    // Unified number input handler with Persistence
+    elements.localAmount.addEventListener('input', (e) => {
+        handleNumberInput(e);
+        toggleClearBtn('localAmount', e.target.value);
+    });
+
+    ['serviceCharge', 'taxRate', 'feeRate'].forEach(id => {
+        elements[id].addEventListener('input', (e) => {
+            handleNumberInput(e);
+            toggleClearBtn(id, e.target.value);
+            saveOptions(); // Save on change
+        });
+    });
+
+    // Clear Buttons
+    document.querySelectorAll('.clear-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (input) {
+                input.value = '';
+                toggleClearBtn(targetId, '');
+                input.focus();
+                calculate(); // Recalculate
+                if (['serviceCharge', 'taxRate', 'feeRate'].includes(targetId)) {
+                    saveOptions(); // Save clear state
+                }
+            }
+        });
+    });
 
     elements.optionsToggle.addEventListener('click', () => {
         state.isOptionsOpen = !state.isOptionsOpen;
@@ -753,11 +785,63 @@ function init() {
         fetchExchangeRates(false);
     });
 
+    // Load saved options
+    loadOptions();
+
     if (CONFIG.UPDATE_INTERVAL > 0) {
         setInterval(() => fetchExchangeRates(true), CONFIG.UPDATE_INTERVAL);
     }
     // Initial calculate call might be empty if no rates yet, but UI structure initializes.
     calculate();
+
+    // Initial Toggle check
+    toggleClearBtn('localAmount', elements.localAmount.value);
+    toggleClearBtn('serviceCharge', elements.serviceCharge.value);
+    toggleClearBtn('taxRate', elements.taxRate.value);
+    toggleClearBtn('feeRate', elements.feeRate.value);
+}
+
+function saveOptions() {
+    const options = {
+        serviceCharge: elements.serviceCharge.value,
+        taxRate: elements.taxRate.value,
+        feeRate: elements.feeRate.value,
+        serviceChargeType: state.serviceChargeType
+    };
+    localStorage.setItem('currency_calculator_options', JSON.stringify(options));
+}
+
+function loadOptions() {
+    const saved = localStorage.getItem('currency_calculator_options');
+    if (saved) {
+        try {
+            const options = JSON.parse(saved);
+            if (options.serviceCharge !== undefined) elements.serviceCharge.value = options.serviceCharge;
+            if (options.taxRate !== undefined) elements.taxRate.value = options.taxRate;
+            if (options.feeRate !== undefined) elements.feeRate.value = options.feeRate;
+            if (options.serviceChargeType) {
+                state.serviceChargeType = options.serviceChargeType;
+                if (state.serviceChargeType === 'fixed') {
+                    elements.tipFixedBtn.click();
+                } else {
+                    elements.tipPercentBtn.click();
+                }
+            }
+        } catch (e) {
+            console.warn('Options load failed', e);
+        }
+    }
+}
+
+function toggleClearBtn(id, value) {
+    const btn = document.querySelector(`.clear-btn[data-target="${id}"]`);
+    if (btn) {
+        if (value && value.length > 0) {
+            btn.classList.add('visible');
+        } else {
+            btn.classList.remove('visible');
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', init);
