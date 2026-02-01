@@ -615,3 +615,15 @@ body {
         padding-top: 12px;
     }
 }
+
+/* Fix for mobile dropdown transparency */
+.currency-search-wrapper {
+    background: var(--bg-app);
+    z-index: 100;
+    position: relative;
+    border-radius: var(--radius-sm);
+    /* Ensure it overlays correctly */
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+}

@@ -304,8 +304,12 @@ async function fetchExchangeRates(forceUpdate = false) {
 
     if (state.currencyList.length > 0) {
         renderCurrencyOptions(state.currencyList);
-        // Do not reset selection if it exists and valid
-        if (!state.exchangeRates[state.selectedCurrency]) {
+
+        // Auto-select if pending detection exists (e.g. init race condition)
+        if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
+            selectCurrency(state.lastDetectedCode);
+            state.lastDetectedCode = null; // Consume
+        } else if (!state.exchangeRates[state.selectedCurrency]) {
             selectCurrency('USD');
         } else {
             selectCurrency(state.selectedCurrency);
@@ -473,6 +477,10 @@ function renderCurrencyOptions(list) {
     });
 }
 
+const EUROZONE_COUNTRIES = [
+    'AT', 'BE', 'HR', 'CY', 'EE', 'FI', 'FR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PT', 'SK', 'SI', 'ES', 'AD', 'MC', 'SM', 'VA'
+];
+
 function selectCurrency(code) {
     if (!state.exchangeRates[code]) return;
     state.selectedCurrency = code;
@@ -480,6 +488,12 @@ function selectCurrency(code) {
     // Reset Local Amount
     elements.localAmount.value = '';
     toggleClearBtn('localAmount', '');
+
+    // Reset Service Charge if Fixed/Total (Currency dependent)
+    if (state.serviceChargeType !== 'percent') {
+        elements.serviceCharge.value = '';
+        toggleClearBtn('serviceCharge', '');
+    }
 
     const data = state.exchangeRates[code];
 
@@ -806,7 +820,17 @@ async function detectLocation(interactive = false) {
         }
 
         const countryCode = data.countryCode;
-        const found = state.currencyList.find(c => c.code.startsWith(countryCode) || c.nationName === data.countryName);
+        let targetCode = countryCode;
+
+        // Eurozone Mapping
+        if (EUROZONE_COUNTRIES.includes(countryCode)) {
+            targetCode = 'EUR';
+        }
+
+        state.lastDetectedCode = targetCode; // Save for later auto-select
+
+        // Try exact match or code start (e.g. USD)
+        const found = state.currencyList.find(c => c.code === targetCode || c.code.startsWith(targetCode));
 
         if (found) {
             selectCurrency(found.code);
