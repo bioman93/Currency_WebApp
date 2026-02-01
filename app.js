@@ -476,6 +476,11 @@ function renderCurrencyOptions(list) {
 function selectCurrency(code) {
     if (!state.exchangeRates[code]) return;
     state.selectedCurrency = code;
+
+    // Reset Local Amount
+    elements.localAmount.value = '';
+    toggleClearBtn('localAmount', '');
+
     const data = state.exchangeRates[code];
 
     elements.selectedCurrencyText.textContent = `${data.nationName} (${data.code})`;
@@ -853,8 +858,14 @@ function init() {
 }
 
 function saveOptions() {
+    let scVal = elements.serviceCharge.value;
+    // Only save value if type is percent
+    if (state.serviceChargeType !== 'percent') {
+        scVal = '';
+    }
+
     const options = {
-        serviceCharge: elements.serviceCharge.value,
+        serviceCharge: scVal,
         taxRate: elements.taxRate.value,
         feeRate: elements.feeRate.value,
         serviceChargeType: state.serviceChargeType
