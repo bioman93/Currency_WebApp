@@ -1309,8 +1309,8 @@ function selectCurrency(code) {
 
     elements.currencySymbol.textContent = getCurrencySymbol(code);
 
-    // Update unit for Fixed Tip if active
-    if (state.serviceChargeType === 'fixed') {
+    // Update unit for Fixed/Total Tip if active
+    if (state.serviceChargeType === 'fixed' || state.serviceChargeType === 'total') {
         elements.serviceChargeUnit.textContent = getCurrencySymbol(code);
     }
 
