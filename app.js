@@ -529,6 +529,7 @@ function selectCurrency(code) {
         elements.serviceChargeUnit.textContent = getCurrencySymbol(code);
     }
 
+    saveOptions(); // Persist selection
     closeSearch();
     calculate();
 }
@@ -869,20 +870,16 @@ async function detectLocation(interactive = false) {
 function init() {
     initEventListeners();
 
-    // User requested "Location First" flow to reduce perceived data usage (even if packet is same)
-    // and to set context before fetching.
+    // Load saved options first (restores selectedCurrency)
+    loadOptions();
+
     updateRateStatus('위치 정보 확인 중...');
 
-    // We try detectLocation first. If it fails or times out, we proceed.
-    detectLocation(false).then(() => {
-        // After location check, fetch data.
-        // If location found, `selectedCurrency` might be updated.
-        // Then fetchExchangeRates will use that selection.
-        fetchExchangeRates(false);
-    });
-
-    // Load saved options
-    loadOptions();
+    // Run parallel: Location Detect + Data Fetch
+    // This allows cached data to load immediately with saved currency,
+    // while location check runs in background and updates (overrides) if successful.
+    detectLocation(false).catch(e => console.warn('Auto-detect failed', e));
+    fetchExchangeRates(false);
 
     if (CONFIG.UPDATE_INTERVAL > 0) {
         setInterval(() => fetchExchangeRates(true), CONFIG.UPDATE_INTERVAL);
@@ -908,7 +905,8 @@ function saveOptions() {
         serviceCharge: scVal,
         taxRate: elements.taxRate.value,
         feeRate: elements.feeRate.value,
-        serviceChargeType: state.serviceChargeType
+        serviceChargeType: state.serviceChargeType,
+        selectedCurrency: state.selectedCurrency // Persist currency
     };
     localStorage.setItem('currency_calculator_options', JSON.stringify(options));
 }
@@ -930,6 +928,9 @@ function loadOptions() {
                 } else {
                     elements.tipPercentBtn.click();
                 }
+            }
+            if (options.selectedCurrency) {
+                state.selectedCurrency = options.selectedCurrency;
             }
         } catch (e) {
             console.warn('Options load failed', e);
