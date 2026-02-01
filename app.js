@@ -181,7 +181,15 @@ async function fetchExchangeRates(forceUpdate = false) {
 
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
-                    selectCurrency(state.selectedCurrency);
+                    // Auto-select logic
+                    if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
+                        selectCurrency(state.lastDetectedCode);
+                        state.lastDetectedCode = null;
+                    } else if (!state.exchangeRates[state.selectedCurrency]) {
+                        selectCurrency('USD');
+                    } else {
+                        selectCurrency(state.selectedCurrency);
+                    }
                 }
                 return;
             }
@@ -194,7 +202,15 @@ async function fetchExchangeRates(forceUpdate = false) {
                 updateRateStatus(`저장된 데이터 (${source}): ${formatTime(state.lastUpdated)}`);
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
-                    selectCurrency(state.selectedCurrency);
+                    // Auto-select logic
+                    if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
+                        selectCurrency(state.lastDetectedCode);
+                        state.lastDetectedCode = null;
+                    } else if (!state.exchangeRates[state.selectedCurrency]) {
+                        selectCurrency('USD');
+                    } else {
+                        selectCurrency(state.selectedCurrency);
+                    }
                 }
                 return;
             }
