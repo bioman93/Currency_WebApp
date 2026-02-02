@@ -208,8 +208,8 @@ function updateUIForLoginState() {
         elements.userAvatar.src = authState.user.picture;
         elements.userName.textContent = authState.user.given_name || authState.user.name;
 
-        // Show Camera (Mobile Only)
-        if (elements.cameraSection) elements.cameraSection.style.display = isMobileDevice() ? 'flex' : 'none';
+        // Show Camera (Visible on all devices when logged in)
+        if (elements.cameraSection) elements.cameraSection.style.display = 'flex';
         if (elements.cameraLockedMsg) elements.cameraLockedMsg.style.display = 'none';
     } else {
         // Show Google Btn
@@ -222,7 +222,8 @@ function updateUIForLoginState() {
         // Hide Camera, Show Lock Msg
         if (elements.cameraSection) elements.cameraSection.style.display = 'none';
         if (elements.cameraLockedMsg) {
-            elements.cameraLockedMsg.style.display = isMobileDevice() ? 'block' : 'none';
+            // Only show lock message on mobile
+            elements.cameraLockedMsg.style.display = 'block';
         }
     }
 }
