@@ -911,13 +911,10 @@ body {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <circle cx="12" cy="12" r="10" />
-                            <circle cx="12" cy="12" r="3" />
-                            <line x1="12" y1="2" x2="12" y2="6" />
-                            <line x1="12" y1="18" x2="12" y2="22" />
-                            <line x1="2" y1="12" x2="6" y2="12" />
-                            <line x1="18" y1="12" x2="22" y2="12" />
+                            <path
+                                d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                         </svg>
-                        <span>현재 위치로 찾기</span>
+                        <span>🌍 타임존으로 화폐 감지</span>
                     </button>
 
                     <div class="current-rate" style="margin-top: 10px;">
@@ -955,12 +952,10 @@ const CONFIG = {
         'https://api.allorigins.win/raw?url=',
         'https://thingproxy.freeboard.io/fetch/'
     ],
-    // Swapped: Global Standard is now TARGET (Primary), Naver is BACKUP
     TARGET_URL: 'https://open.er-api.com/v6/latest/KRW',
-    GEO_API: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
-    BACKUP_API: 'https://api.stock.naver.com/marketindex/exchanges', // Naver as Backup via Proxy
+    BACKUP_API: 'https://api.stock.naver.com/marketindex/exchanges',
     UPDATE_INTERVAL: 0,
-    CACHE_KEY: 'exchange_rates_cache_v2' // Version bump for new structure
+    CACHE_KEY: 'exchange_rates_cache_v2'
 };
 
 const FALLBACK_DATA = [
@@ -1762,56 +1757,126 @@ function initEventListeners() {
     elements.detectLocationBtn.addEventListener('click', () => detectLocation(true));
 }
 
-async function detectLocation(interactive = false) {
-    if (!navigator.geolocation) {
-        if (interactive) alert('미지원 브라우저입니다.');
-        return;
-    }
+// Timezone to Currency Mapping
+const TIMEZONE_CURRENCY_MAP = {
+    // Asia
+    'Asia/Seoul': 'KRW',
+    'Asia/Tokyo': 'JPY',
+    'Asia/Shanghai': 'CNY',
+    'Asia/Chongqing': 'CNY',
+    'Asia/Hong_Kong': 'HKD',
+    'Asia/Taipei': 'TWD',
+    'Asia/Singapore': 'SGD',
+    'Asia/Bangkok': 'THB',
+    'Asia/Ho_Chi_Minh': 'VND',
+    'Asia/Saigon': 'VND',
+    'Asia/Jakarta': 'IDR',
+    'Asia/Kuala_Lumpur': 'MYR',
+    'Asia/Manila': 'PHP',
+    'Asia/Kolkata': 'INR',
+    'Asia/Dubai': 'AED',
+    'Asia/Riyadh': 'SAR',
+    'Asia/Ulaanbaatar': 'MNT',
+    'Asia/Almaty': 'KZT',
+    'Asia/Brunei': 'BND',
 
-    if (interactive) elements.detectLocationBtn.innerHTML = '<span>⏳ 감지 중...</span>';
+    // Europe (Eurozone)
+    'Europe/Paris': 'EUR',
+    'Europe/Berlin': 'EUR',
+    'Europe/Rome': 'EUR',
+    'Europe/Madrid': 'EUR',
+    'Europe/Amsterdam': 'EUR',
+    'Europe/Brussels': 'EUR',
+    'Europe/Vienna': 'EUR',
+    'Europe/Athens': 'EUR',
+    'Europe/Dublin': 'EUR',
+    'Europe/Lisbon': 'EUR',
+    'Europe/Helsinki': 'EUR',
+    'Europe/Luxembourg': 'EUR',
 
+    // Europe (Non-Eurozone)
+    'Europe/London': 'GBP',
+    'Europe/Zurich': 'CHF',
+    'Europe/Stockholm': 'SEK',
+    'Europe/Oslo': 'NOK',
+    'Europe/Copenhagen': 'DKK',
+    'Europe/Warsaw': 'PLN',
+    'Europe/Prague': 'CZK',
+    'Europe/Budapest': 'HUF',
+    'Europe/Moscow': 'RUB',
+    'Europe/Istanbul': 'TRY',
+
+    // Americas
+    'America/New_York': 'USD',
+    'America/Chicago': 'USD',
+    'America/Denver': 'USD',
+    'America/Los_Angeles': 'USD',
+    'America/Anchorage': 'USD',
+    'America/Phoenix': 'USD',
+    'Pacific/Honolulu': 'USD',
+    'Pacific/Guam': 'USD',
+    'America/Toronto': 'CAD',
+    'America/Vancouver': 'CAD',
+    'America/Montreal': 'CAD',
+    'America/Mexico_City': 'MXN',
+    'America/Sao_Paulo': 'BRL',
+    'America/Buenos_Aires': 'ARS',
+
+    // Oceania
+    'Australia/Sydney': 'AUD',
+    'Australia/Melbourne': 'AUD',
+    'Australia/Brisbane': 'AUD',
+    'Australia/Perth': 'AUD',
+    'Pacific/Auckland': 'NZD',
+
+    // Africa & Middle East
+    'Africa/Johannesburg': 'ZAR',
+    'Africa/Cairo': 'EGP',
+    'Asia/Jerusalem': 'ILS',
+    'Asia/Amman': 'JOD'
+};
+
+function detectLocation(interactive = false) {
     try {
-        const position = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
-        const { latitude, longitude } = position.coords;
-        const res = await fetch(`${CONFIG.GEO_API}?latitude=${latitude}&longitude=${longitude}&localityLanguage=ko`);
-        const data = await res.json();
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        state.detectedTimeZone = timezone;
 
-        // Extract TimeZone from informative block (look for "Area/City" pattern)
-        if (data.localityInfo && data.localityInfo.informative) {
-            const tzEntry = data.localityInfo.informative.find(i => i.name && i.name.includes('/') && !i.name.includes(' '));
-            if (tzEntry) {
-                state.detectedTimeZone = tzEntry.name;
-            }
+        let targetCode = TIMEZONE_CURRENCY_MAP[timezone];
+
+        // Fallback: try to match by region prefix
+        if (!targetCode) {
+            const region = timezone.split('/')[0];
+            if (region === 'Europe') targetCode = 'EUR';
+            else if (region === 'America') targetCode = 'USD';
+            else if (region === 'Asia') targetCode = 'USD'; // Default for unknown Asian timezones
+            else targetCode = 'USD';
         }
 
-        const countryCode = data.countryCode;
-        let targetCode = countryCode;
+        state.lastDetectedCode = targetCode;
 
-        // Eurozone Mapping
-        if (EUROZONE_COUNTRIES.includes(countryCode)) {
-            targetCode = 'EUR';
-        }
-
-        state.lastDetectedCode = targetCode; // Save for later auto-select
-
-        // Try exact match or code start (e.g. USD)
-        const found = state.currencyList.find(c => c.code === targetCode || c.code.startsWith(targetCode));
+        // Find matching currency
+        const found = state.currencyList.find(c => c.code === targetCode);
 
         if (found) {
             selectCurrency(found.code);
-            if (interactive) alert(`📍 ${data.countryName} 감지 완료`);
+            if (interactive) {
+                alert(`🌍 타임존: ${timezone}\n💰 화폐: ${found.code} 선택됨`);
+            }
+        } else if (state.exchangeRates[targetCode]) {
+            selectCurrency(targetCode);
+            if (interactive) {
+                alert(`🌍 타임존: ${timezone}\n💰 화폐: ${targetCode} 선택됨`);
+            }
         } else {
-            if (interactive) alert(`📍 ${data.countryName} 감지됨 (화폐 정보 없음)`);
+            if (interactive) {
+                alert(`🌍 타임존: ${timezone}\n⚠️ 해당 화폐 정보 없음 (기본: USD)`);
+            }
         }
+
+        console.log(`Timezone detected: ${timezone} → ${targetCode}`);
     } catch (e) {
-        console.error(e);
-        if (interactive) alert('위치 감지 실패');
-    } finally {
-        elements.detectLocationBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
-            </svg><span>현재 위치로 찾기</span>
-        `;
+        console.error('Timezone detection failed:', e);
+        if (interactive) alert('타임존 감지 실패');
     }
 }
 
@@ -1821,12 +1886,12 @@ function init() {
     // Load saved options first (restores selectedCurrency)
     loadOptions();
 
-    updateRateStatus('위치 정보 확인 중...');
+    updateRateStatus('환율 정보 로딩 중...');
 
-    // Run parallel: Location Detect + Data Fetch
-    // This allows cached data to load immediately with saved currency,
-    // while location check runs in background and updates (overrides) if successful.
-    detectLocation(false).catch(e => console.warn('Auto-detect failed', e));
+    // Timezone-based detection (synchronous, no permission needed)
+    detectLocation(false);
+
+    // Fetch exchange rates
     fetchExchangeRates(false);
 
     if (CONFIG.UPDATE_INTERVAL > 0) {
