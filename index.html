@@ -46,6 +46,26 @@
                         autocomplete="off">
                     <button class="clear-btn" data-target="localAmount" aria-label="지우기">C</button>
                 </div>
+
+                <!-- Camera Section (Mobile Only) -->
+                <div class="camera-section" id="cameraSection">
+                    <button class="camera-btn" id="cameraBtn" aria-label="가격표 촬영">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="6" width="18" height="14" rx="2" />
+                            <circle cx="12" cy="13" r="4" />
+                            <path d="M7 6V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2" />
+                        </svg>
+                        <span>📸 가격표 촬영</span>
+                    </button>
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+                </div>
+
+                <!-- OCR Result Preview -->
+                <div class="ocr-result" id="ocrResult" style="display:none;">
+                    <div class="ocr-status" id="ocrStatus">인식 중...</div>
+                    <div class="ocr-prices" id="ocrPrices"></div>
+                </div>
             </section>
 
             <!-- Result Section (Placed prominently after input) -->

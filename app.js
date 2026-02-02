@@ -145,7 +145,14 @@ const elements = {
     resultValue: document.getElementById('resultValue'),
     resultBreakdown: document.getElementById('resultBreakdown'),
     refreshRateBtn: document.getElementById('refreshRateBtn'),
-    rateUpdateTime: document.getElementById('rateUpdateTime')
+    rateUpdateTime: document.getElementById('rateUpdateTime'),
+    // OCR Elements
+    cameraSection: document.getElementById('cameraSection'),
+    cameraBtn: document.getElementById('cameraBtn'),
+    cameraInput: document.getElementById('cameraInput'),
+    ocrResult: document.getElementById('ocrResult'),
+    ocrStatus: document.getElementById('ocrStatus'),
+    ocrPrices: document.getElementById('ocrPrices')
 };
 
 // ===================================
@@ -949,4 +956,157 @@ function toggleClearBtn(id, value) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ===================================
+// OCR (Optical Character Recognition)
+// ===================================
+
+let tesseractLoaded = false;
+let tesseractWorker = null;
+
+// Load Tesseract.js from CDN
+async function loadTesseract() {
+    if (tesseractLoaded) return true;
+
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        script.onload = () => {
+            tesseractLoaded = true;
+            console.log('Tesseract.js loaded');
+            resolve(true);
+        };
+        script.onerror = () => reject(new Error('Failed to load Tesseract.js'));
+        document.head.appendChild(script);
+    });
+}
+
+// Initialize OCR Worker
+async function initOCRWorker() {
+    if (tesseractWorker) return tesseractWorker;
+
+    await loadTesseract();
+
+    tesseractWorker = await Tesseract.createWorker('eng', 1, {
+        logger: m => {
+            if (m.status === 'recognizing text') {
+                const progress = Math.round(m.progress * 100);
+                if (elements.ocrStatus) {
+                    elements.ocrStatus.textContent = `인식 중... ${progress}%`;
+                }
+            }
+        }
+    });
+
+    return tesseractWorker;
+}
+
+// Extract prices from OCR text
+function extractPrices(text) {
+    const prices = [];
+
+    // Currency symbol patterns (before or after number)
+    const patterns = [
+        /[$€£¥]\s*([\d,]+(?:\.\d{1,2})?)/g,      // $12.50, €15,00
+        /([\d,]+(?:\.\d{1,2})?)\s*[$€£¥]/g,      // 12.50$, 15,00€
+        /(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)/g // Plain numbers: 1,234.56
+    ];
+
+    const seen = new Set();
+
+    for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            // Extract the numeric part
+            let numStr = match[1] || match[0];
+            numStr = numStr.replace(/[$€£¥\s]/g, '').replace(/,/g, '');
+
+            const num = parseFloat(numStr);
+            if (!isNaN(num) && num > 0 && num < 1000000 && !seen.has(num)) {
+                seen.add(num);
+                prices.push({
+                    value: num,
+                    original: match[0].trim()
+                });
+            }
+        }
+    }
+
+    // Sort by value descending
+    prices.sort((a, b) => b.value - a.value);
+
+    return prices.slice(0, 10); // Return top 10 prices
+}
+
+// Process captured image
+async function processImage(imageFile) {
+    if (!elements.ocrResult || !elements.ocrStatus || !elements.ocrPrices) return;
+
+    elements.ocrResult.style.display = 'block';
+    elements.ocrStatus.textContent = 'OCR 엔진 로딩 중...';
+    elements.ocrStatus.classList.add('loading');
+    elements.ocrPrices.innerHTML = '';
+
+    try {
+        const worker = await initOCRWorker();
+
+        elements.ocrStatus.textContent = '이미지 분석 중...';
+
+        const { data: { text } } = await worker.recognize(imageFile);
+
+        const prices = extractPrices(text);
+
+        elements.ocrStatus.classList.remove('loading');
+
+        if (prices.length === 0) {
+            elements.ocrStatus.textContent = '가격을 찾지 못했습니다. 다시 시도해 주세요.';
+            return;
+        }
+
+        elements.ocrStatus.textContent = `${prices.length}개 금액 인식됨 (선택하세요)`;
+
+        // Display price options
+        prices.forEach(price => {
+            const btn = document.createElement('button');
+            btn.className = 'ocr-price-item';
+            btn.textContent = formatNumber(price.value, 2);
+            btn.addEventListener('click', () => {
+                // Apply to local amount input
+                elements.localAmount.value = formatNumber(price.value, 2);
+                toggleClearBtn('localAmount', elements.localAmount.value);
+                calculate();
+
+                // Hide OCR result
+                elements.ocrResult.style.display = 'none';
+            });
+            elements.ocrPrices.appendChild(btn);
+        });
+
+    } catch (error) {
+        console.error('OCR Error:', error);
+        elements.ocrStatus.classList.remove('loading');
+        elements.ocrStatus.textContent = '인식 오류가 발생했습니다. 다시 시도해 주세요.';
+    }
+}
+
+// Initialize OCR event listeners
+function initOCRListeners() {
+    if (!elements.cameraBtn || !elements.cameraInput) return;
+
+    elements.cameraBtn.addEventListener('click', () => {
+        elements.cameraInput.click();
+    });
+
+    elements.cameraInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            processImage(file);
+        }
+        // Reset input to allow same file selection
+        e.target.value = '';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    initOCRListeners();
+});
