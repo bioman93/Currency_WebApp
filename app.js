@@ -16,6 +16,7 @@ const CONFIG = {
     ],
     TARGET_URL: 'https://open.er-api.com/v6/latest/KRW',
     BACKUP_API: 'https://api.stock.naver.com/marketindex/exchanges',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyJCRBOD5fAerDQqzwTZfch1Cm9nFYSdmtX2qvH2RB8K68sBK4AEFzT87TIA2dPsgHD/exec',
     UPDATE_INTERVAL: 0,
     CACHE_KEY: 'exchange_rates_cache_v2'
 };
@@ -144,6 +145,14 @@ const elements = {
     resultBreakdown: document.getElementById('resultBreakdown'),
     refreshRateBtn: document.getElementById('refreshRateBtn'),
     rateUpdateTime: document.getElementById('rateUpdateTime'),
+
+    // Auth Elements
+    userProfile: document.getElementById('userProfile'),
+    userAvatar: document.getElementById('userAvatar'),
+    userName: document.getElementById('userName'),
+    signOutBtn: document.getElementById('signOutBtn'),
+    cameraLockedMsg: document.getElementById('cameraLockedMsg'),
+
     // OCR Elements
     cameraSection: document.getElementById('cameraSection'),
     cameraBtn: document.getElementById('cameraBtn'),
@@ -152,6 +161,79 @@ const elements = {
     ocrStatus: document.getElementById('ocrStatus'),
     ocrPrices: document.getElementById('ocrPrices')
 };
+
+
+
+// ===================================
+// Auth Logic
+// ===================================
+
+const authState = {
+    isLoggedIn: false,
+    user: null,
+    credential: null
+};
+
+// Global function for Google Sign-In callback
+window.handleCredentialResponse = function (response) {
+    if (response.credential) {
+        // Decode JWT (simple decoding for display, verification should be on backend)
+        const responsePayload = decodeJwtResponse(response.credential);
+
+        authState.isLoggedIn = true;
+        authState.user = responsePayload;
+        authState.credential = response.credential;
+
+        updateUIForLoginState();
+    }
+};
+
+function decodeJwtResponse(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+}
+
+function updateUIForLoginState() {
+    if (authState.isLoggedIn && authState.user) {
+        // Hide Google Btn
+        const gBtn = document.querySelector('.g_id_signin');
+        if (gBtn) gBtn.style.display = 'none';
+
+        // Show Profile
+        elements.userProfile.style.display = 'flex';
+        elements.userAvatar.src = authState.user.picture;
+        elements.userName.textContent = authState.user.given_name || authState.user.name;
+
+        // Show Camera (Mobile Only)
+        if (elements.cameraSection) elements.cameraSection.style.display = isMobileDevice() ? 'flex' : 'none';
+        if (elements.cameraLockedMsg) elements.cameraLockedMsg.style.display = 'none';
+    } else {
+        // Show Google Btn
+        const gBtn = document.querySelector('.g_id_signin');
+        if (gBtn) gBtn.style.display = 'block';
+
+        // Hide Profile
+        elements.userProfile.style.display = 'none';
+
+        // Hide Camera, Show Lock Msg
+        if (elements.cameraSection) elements.cameraSection.style.display = 'none';
+        if (elements.cameraLockedMsg) {
+            elements.cameraLockedMsg.style.display = isMobileDevice() ? 'block' : 'none';
+        }
+    }
+}
+
+function signOut() {
+    authState.isLoggedIn = false;
+    authState.user = null;
+    authState.credential = null;
+    google.accounts.id.disableAutoSelect();
+    updateUIForLoginState();
+}
 
 // ===================================
 // Main Logic
@@ -817,6 +899,11 @@ function initEventListeners() {
         elements.refreshRateBtn.blur();
     });
     elements.detectLocationBtn.addEventListener('click', () => detectLocation(true));
+
+    // Auth Listeners
+    if (elements.signOutBtn) {
+        elements.signOutBtn.addEventListener('click', signOut);
+    }
 }
 
 // Timezone to Currency Mapping
@@ -1205,59 +1292,176 @@ function preprocessImage(imageFile) {
     });
 }
 
-// Process captured image
-async function processImage(imageFile) {
-    if (!elements.ocrResult || !elements.ocrStatus || !elements.ocrPrices) return;
+// Image Processing & Gemini OCR
+async function processImage(file) {
+    if (!file) return;
+
+    if (!authState.isLoggedIn) {
+        alert("로그인이 필요한 기능입니다.");
+        return;
+    }
 
     elements.ocrResult.style.display = 'block';
-    elements.ocrStatus.textContent = '이미지 전처리 중...';
-    elements.ocrStatus.classList.add('loading');
+    elements.ocrStatus.textContent = "이미지 전처리 중...";
     elements.ocrPrices.innerHTML = '';
 
     try {
-        // Preprocess image for better accuracy
-        const processedImage = await preprocessImage(imageFile);
+        // 1. Preprocess Image (Resize & Compress)
+        const base64Image = await preprocessImage(file);
 
-        elements.ocrStatus.textContent = 'OCR 엔진 로딩 중...';
-        const worker = await initOCRWorker();
+        // 2. Send to Gemini Backend
+        elements.ocrStatus.textContent = "AI가 영수증 분석 중... (약 3-5초)";
+        const result = await callGeminiOCR(base64Image);
 
-        elements.ocrStatus.textContent = '텍스트 인식 중...';
+        if (result.success && result.data) {
+            elements.ocrStatus.textContent = "✅ 분석 완료";
+            console.log("Gemini Data:", result.data);
 
-        const { data: { text } } = await worker.recognize(processedImage);
+            // 3. Update UI
+            applyOCRResult(result.data);
 
-        const prices = extractPrices(text);
-
-        elements.ocrStatus.classList.remove('loading');
-
-        if (prices.length === 0) {
-            elements.ocrStatus.textContent = '가격을 찾지 못했습니다. 다시 시도해 주세요.';
-            return;
+            // 4. Offer to Save
+            showSaveButton(result.data);
+        } else {
+            throw new Error(result.error || "응답 오류");
         }
-
-        elements.ocrStatus.textContent = `${prices.length}개 금액 인식됨 (선택하세요)`;
-
-        // Display price options
-        prices.forEach(price => {
-            const btn = document.createElement('button');
-            btn.className = 'ocr-price-item';
-            btn.textContent = formatNumber(price.value, 2);
-            btn.addEventListener('click', () => {
-                // Apply to local amount input
-                elements.localAmount.value = formatNumber(price.value, 2);
-                toggleClearBtn('localAmount', elements.localAmount.value);
-                calculate();
-
-                // Hide OCR result
-                elements.ocrResult.style.display = 'none';
-            });
-            elements.ocrPrices.appendChild(btn);
-        });
 
     } catch (error) {
         console.error('OCR Error:', error);
-        elements.ocrStatus.classList.remove('loading');
-        elements.ocrStatus.textContent = '인식 오류가 발생했습니다. 다시 시도해 주세요.';
+        elements.ocrStatus.textContent = `❌ 오류: ${error.message}`;
     }
+}
+
+async function preprocessImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Max dimensions to reduce payload size
+                const MAX_WIDTH = 1024;
+                const MAX_HEIGHT = 1024;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convert to Base64 (JPEG 0.8 quality)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                resolve(dataUrl.split(',')[1]); // Remove header
+            };
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function callGeminiOCR(base64Image) {
+    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'cors', // Text/plain is standard for GAS simple requests but we try standard JSON
+        headers: {
+            'Content-Type': 'text/plain;charset=utf-8', // GAS often requires text/plain for CORS
+        },
+        body: JSON.stringify({
+            action: 'ocr',
+            image: base64Image,
+            mimeType: 'image/jpeg'
+        })
+    });
+    return await response.json();
+}
+
+function applyOCRResult(data) {
+    // Auto-select currency if provided and different
+    if (data.currency && data.currency !== state.selectedCurrency) {
+        const mapped = state.currencyList.find(c => c.code === data.currency);
+        if (mapped) {
+            selectCurrency(data.currency);
+        }
+    }
+
+    // Set Amount
+    if (data.total) {
+        elements.localAmount.value = data.total;
+        calculate();
+    }
+
+    // Show Items
+    if (data.items && data.items.length > 0) {
+        const html = data.items.map(item =>
+            `<div class="price-chip" onclick="setInput(${item.price})">
+                ${item.name}: ${item.price}
+             </div>`
+        ).join('');
+        elements.ocrPrices.innerHTML = `<div style="margin-top:5px; font-size:0.85em;">감지된 항목:</div>${html}`;
+    }
+}
+
+function showSaveButton(receiptData) {
+    const btnId = 'saveToSheetBtn';
+    let btn = document.getElementById(btnId);
+
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = btnId;
+        btn.className = 'confirm-btn'; // Style reuse
+        btn.style.marginTop = '10px';
+        btn.style.width = '100%';
+        btn.innerHTML = '💾 구글 시트에 저장';
+        elements.ocrResult.appendChild(btn);
+    }
+
+    btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = '저장 중...';
+
+        try {
+            const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    action: 'save',
+                    userEmail: authState.user.email,
+                    receiptData: receiptData
+                })
+            });
+            const res = await response.json();
+            if (res.success) {
+                alert('✅ 저장되었습니다!');
+                btn.style.display = 'none';
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (e) {
+            alert('저장 실패: ' + e.message);
+            btn.disabled = false;
+            btn.textContent = '💾 구글 시트에 저장';
+        }
+    };
+}
+
+function setInput(val) {
+    elements.localAmount.value = val;
+    calculate();
 }
 
 // Initialize OCR event listeners

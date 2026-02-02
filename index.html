@@ -14,9 +14,50 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        /* Login UI Styles */
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-profile {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .camera-locked-message {
+            text-align: center;
+            padding: 15px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+            /* Initially hidden */
+        }
+    </style>
 </head>
 
 <body>
@@ -25,14 +66,39 @@
         <header class="app-header">
             <div class="header-content">
                 <h1 class="app-title">💱 환율 계산기</h1>
-                <button id="refreshRateBtn" class="refresh-btn" aria-label="환율 새로고침">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6" />
-                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-                    </svg>
-                </button>
-            </div>
 
+                <div class="header-right">
+                    <!-- Google Sign-In Button -->
+                    <div id="g_id_onload"
+                        data-client_id="708082750675-162qtq9rpl4g5t6247dr87joitbksaua.apps.googleusercontent.com"
+                        data-callback="handleCredentialResponse" data-auto_select="true" data-itp_support="true">
+                    </div>
+                    <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline"
+                        data-text="signin_with" data-size="medium">
+                    </div>
+
+                    <!-- User Profile (Hidden by default) -->
+                    <div id="userProfile" class="user-profile">
+                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
+                        <span id="userName">User</span>
+                        <button id="signOutBtn" class="icon-btn"
+                            style="width:24px; height:24px; min-width:unset; padding:0;" aria-label="로그아웃">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button id="refreshRateBtn" class="refresh-btn" aria-label="환율 새로고침">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6" />
+                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </header>
 
         <!-- Main Calculator Section -->
@@ -48,7 +114,7 @@
                 </div>
 
                 <!-- Camera Section (Mobile Only) -->
-                <div class="camera-section" id="cameraSection">
+                <div class="camera-section" id="cameraSection" style="display: none;">
                     <button class="camera-btn" id="cameraBtn" aria-label="가격표 촬영">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -56,133 +122,138 @@
                             <circle cx="12" cy="13" r="4" />
                             <path d="M7 6V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2" />
                         </svg>
-                        <span>📸 가격표 촬영</span>
+                        <span>📸 가격표 촬영 (AI)</span>
                     </button>
-                    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
                 </div>
 
-                <!-- OCR Result Preview -->
-                <div class="ocr-result" id="ocrResult" style="display:none;">
-                    <div class="ocr-status" id="ocrStatus">인식 중...</div>
-                    <div class="ocr-prices" id="ocrPrices"></div>
+                <div id="cameraLockedMsg" class="camera-locked-message">
+                    <p>📸 가격표 자동 인식</p>
+                    <small>로그인하면 AI가 가격을 읽어줍니다</small>
                 </div>
-            </section>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+    </div>
 
-            <!-- Result Section (Placed prominently after input) -->
-            <section class="result-section">
-                <div class="result-label">대한민국 원화</div>
-                <div class="result-amount">
-                    <span class="result-symbol">₩</span>
-                    <span class="result-value" id="resultValue">0</span>
-                </div>
-                <div class="result-breakdown" id="resultBreakdown">
-                    <!-- Calculation breakdown will be inserted here -->
-                </div>
-            </section>
+    <!-- OCR Result Preview -->
+    <div class="ocr-result" id="ocrResult" style="display:none;">
+        <div class="ocr-status" id="ocrStatus">인식 중...</div>
+        <div class="ocr-prices" id="ocrPrices"></div>
+    </div>
+    </section>
 
-            <!-- Options Section (Collapsible) -->
-            <section class="options-section">
-                <button class="options-toggle" id="optionsToggle">
-                    <span>추가 옵션</span>
-                    <span class="toggle-icon" id="toggleIcon">▼</span>
-                </button>
+    <!-- Result Section (Placed prominently after input) -->
+    <section class="result-section">
+        <div class="result-label">대한민국 원화</div>
+        <div class="result-amount">
+            <span class="result-symbol">₩</span>
+            <span class="result-value" id="resultValue">0</span>
+        </div>
+        <div class="result-breakdown" id="resultBreakdown">
+            <!-- Calculation breakdown will be inserted here -->
+        </div>
+    </section>
 
-                <div class="options-content" id="optionsContent">
-                    <!-- Service Charge -->
-                    <div class="option-group">
-                        <label class="option-label">서비스차지 (팁)</label>
-                        <div class="option-row">
-                            <div class="option-type-selector">
-                                <button class="type-btn active" data-type="percent" id="tipPercentBtn">%</button>
-                                <button class="type-btn" data-type="fixed" id="tipFixedBtn">정액</button>
-                                <button class="type-btn" data-type="total" id="tipTotalBtn">합산</button>
-                            </div>
-                            <div class="option-input-wrapper">
-                                <input type="text" id="serviceCharge" class="option-input" placeholder="0"
-                                    inputmode="decimal" autocomplete="off">
-                                <span class="option-unit" id="serviceChargeUnit">%</span>
-                                <button class="clear-btn option-clear" data-target="serviceCharge"
-                                    aria-label="지우기">C</button>
-                            </div>
-                        </div>
+    <!-- Options Section (Collapsible) -->
+    <section class="options-section">
+        <button class="options-toggle" id="optionsToggle">
+            <span>추가 옵션</span>
+            <span class="toggle-icon" id="toggleIcon">▼</span>
+        </button>
+
+        <div class="options-content" id="optionsContent">
+            <!-- Service Charge -->
+            <div class="option-group">
+                <label class="option-label">서비스차지 (팁)</label>
+                <div class="option-row">
+                    <div class="option-type-selector">
+                        <button class="type-btn active" data-type="percent" id="tipPercentBtn">%</button>
+                        <button class="type-btn" data-type="fixed" id="tipFixedBtn">정액</button>
+                        <button class="type-btn" data-type="total" id="tipTotalBtn">합산</button>
                     </div>
-
-                    <!-- Tax Rate -->
-                    <div class="option-group">
-                        <label class="option-label">세금율</label>
-                        <div class="option-input-wrapper">
-                            <input type="text" id="taxRate" class="option-input" placeholder="0" inputmode="decimal"
-                                autocomplete="off">
-                            <span class="option-unit">%</span>
-                            <button class="clear-btn option-clear" data-target="taxRate" aria-label="지우기">C</button>
-                        </div>
-                    </div>
-
-                    <!-- Fee Rate -->
-                    <div class="option-group">
-                        <label class="option-label">수수료율</label>
-                        <div class="option-input-wrapper">
-                            <input type="text" id="feeRate" class="option-input" placeholder="0" inputmode="decimal"
-                                autocomplete="off">
-                            <span class="option-unit">%</span>
-                            <button class="clear-btn option-clear" data-target="feeRate" aria-label="지우기">C</button>
-                        </div>
+                    <div class="option-input-wrapper">
+                        <input type="text" id="serviceCharge" class="option-input" placeholder="0" inputmode="decimal"
+                            autocomplete="off">
+                        <span class="option-unit" id="serviceChargeUnit">%</span>
+                        <button class="clear-btn option-clear" data-target="serviceCharge" aria-label="지우기">C</button>
                     </div>
                 </div>
-            </section>
+            </div>
 
-            <!-- Currency Selection (Moved to bottom) -->
-            <section class="currency-section">
-                <div class="currency-selector">
-                    <label class="section-label">현지 화폐 변경</label>
-                    <div class="currency-interaction-wrapper">
-                        <!-- Display Mode -->
-                        <div id="currencyDisplay" class="currency-display" role="button" tabindex="0">
-                            <span id="selectedCurrencyText" class="display-text">미국 (USD)</span>
-                            <span class="edit-hint">✎ 변경</span>
-                        </div>
+            <!-- Tax Rate -->
+            <div class="option-group">
+                <label class="option-label">세금율</label>
+                <div class="option-input-wrapper">
+                    <input type="text" id="taxRate" class="option-input" placeholder="0" inputmode="decimal"
+                        autocomplete="off">
+                    <span class="option-unit">%</span>
+                    <button class="clear-btn option-clear" data-target="taxRate" aria-label="지우기">C</button>
+                </div>
+            </div>
 
-                        <!-- Input Mode -->
-                        <div id="currencySearchWrapper" class="currency-search-wrapper" style="display: none;">
-                            <div class="search-input-container">
-                                <input type="text" id="currencySearchInput" class="main-search-input"
-                                    placeholder="국가명 또는 화폐명 검색..." autocomplete="off">
-                                <button id="closeSearchBtn" class="close-search-btn" aria-label="닫기">✕</button>
-                            </div>
+            <!-- Fee Rate -->
+            <div class="option-group">
+                <label class="option-label">수수료율</label>
+                <div class="option-input-wrapper">
+                    <input type="text" id="feeRate" class="option-input" placeholder="0" inputmode="decimal"
+                        autocomplete="off">
+                    <span class="option-unit">%</span>
+                    <button class="clear-btn option-clear" data-target="feeRate" aria-label="지우기">C</button>
+                </div>
+            </div>
+        </div>
+    </section>
 
-                            <div class="dropdown-list" id="currencyOptionsList">
-                                <!-- Options populated by JS -->
-                            </div>
-                        </div>
+    <!-- Currency Selection (Moved to bottom) -->
+    <section class="currency-section">
+        <div class="currency-selector">
+            <label class="section-label">현지 화폐 변경</label>
+            <div class="currency-interaction-wrapper">
+                <!-- Display Mode -->
+                <div id="currencyDisplay" class="currency-display" role="button" tabindex="0">
+                    <span id="selectedCurrencyText" class="display-text">미국 (USD)</span>
+                    <span class="edit-hint">✎ 변경</span>
+                </div>
+
+                <!-- Input Mode -->
+                <div id="currencySearchWrapper" class="currency-search-wrapper" style="display: none;">
+                    <div class="search-input-container">
+                        <input type="text" id="currencySearchInput" class="main-search-input"
+                            placeholder="국가명 또는 화폐명 검색..." autocomplete="off">
+                        <button id="closeSearchBtn" class="close-search-btn" aria-label="닫기">✕</button>
                     </div>
 
-                    <!-- Moved 'detect location' inside here or right below -->
-                    <button id="detectLocationBtn" class="location-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <path
-                                d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
-                        <span>🌍 타임존으로 화폐 감지</span>
-                    </button>
-
-                    <div class="current-rate" style="margin-top: 10px;">
-                        <span>적용 환율: </span>
-                        <strong id="currentRateDisplay">-</strong>
-                        <span class="rate-unit">원</span>
+                    <div class="dropdown-list" id="currencyOptionsList">
+                        <!-- Options populated by JS -->
                     </div>
                 </div>
-            </section>
-        </main>
+            </div>
 
-        <!-- Footer -->
-        <footer class="app-footer">
-            <div class="rate-info-footer" id="rateUpdateTime" style="margin-bottom: 4px; font-weight: 500;">환율 정보 로딩
-                중...</div>
-            <p id="sourceInfo">환율 정보: Global Standard API</p>
-            <p class="disclaimer">※ 실제 환전 시 환율은 다를 수 있습니다</p>
-        </footer>
+            <!-- Moved 'detect location' inside here or right below -->
+            <button id="detectLocationBtn" class="location-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path
+                        d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                <span>🌍 타임존으로 화폐 감지</span>
+            </button>
+
+            <div class="current-rate" style="margin-top: 10px;">
+                <span>적용 환율: </span>
+                <strong id="currentRateDisplay">-</strong>
+                <span class="rate-unit">원</span>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="rate-info-footer" id="rateUpdateTime" style="margin-bottom: 4px; font-weight: 500;">환율 정보 로딩
+            중...</div>
+        <p id="sourceInfo">환율 정보: Global Standard API</p>
+        <p class="disclaimer">※ 실제 환전 시 환율은 다를 수 있습니다</p>
+    </footer>
     </div>
 
     <script src="app.js"></script>
