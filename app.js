@@ -986,7 +986,7 @@ async function initOCRWorker() {
 
     await loadTesseract();
 
-    tesseractWorker = await Tesseract.createWorker('eng', 1, {
+    tesseractWorker = await Tesseract.createWorker(['eng', 'chi_sim'], 1, {
         logger: m => {
             if (m.status === 'recognizing text') {
                 const progress = Math.round(m.progress * 100);
@@ -1005,10 +1005,11 @@ function extractPrices(text) {
     const prices = [];
 
     // Currency symbol patterns (before or after number)
+    // ¥ (U+00A5), ￥ (U+FFE5), 元, 円, ₩ for Asian currencies
     const patterns = [
-        /[$€£¥]\s*([\d,]+(?:\.\d{1,2})?)/g,      // $12.50, €15,00
-        /([\d,]+(?:\.\d{1,2})?)\s*[$€£¥]/g,      // 12.50$, 15,00€
-        /(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)/g // Plain numbers: 1,234.56
+        /[$€£¥￥₩₹฿₽元円]\s*([\d,\.]+)/g,                    // ¥120.00, $12.50
+        /([\d,\.]+)\s*[$€£¥￥₩₹฿₽元円]/g,                    // 120.00¥, 12.50$
+        /(\d+(?:[,.]\d{1,2})?)/g                             // Plain numbers: 120, 12.50
     ];
 
     const seen = new Set();
