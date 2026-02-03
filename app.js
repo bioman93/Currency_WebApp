@@ -1632,12 +1632,36 @@ async function scanPriceTag(file) {
 
             // 1. Auto-set Currency
             if (data.currency) {
-                const detectedCode = data.currency.trim().toUpperCase();
+                let detectedCode = data.currency.trim().toUpperCase();
+
+                // Symbol to Code Mapping
+                const symbolMap = {
+                    '$': 'USD',
+                    '€': 'EUR',
+                    '£': 'GBP',
+                    '¥': 'JPY', // Default to JPY for yen symbol
+                    '元': 'CNY',
+                    'CN¥': 'CNY',
+                    '₩': 'KRW',
+                    '฿': 'THB',
+                    '₫': 'VND',
+                    '₱': 'PHP',
+                    'Rp': 'IDR',
+                    '₹': 'INR'
+                };
+
+                if (symbolMap[detectedCode]) {
+                    detectedCode = symbolMap[detectedCode];
+                }
+
+                // Find matching currency in our list
                 const mapped = state.currencyList.find(c => c.code === detectedCode);
 
                 if (mapped && detectedCode !== state.selectedCurrency) {
                     console.log(`Currency switched: ${state.selectedCurrency} -> ${detectedCode}`);
                     selectCurrency(detectedCode);
+                } else if (!mapped) {
+                    console.warn(`Detected currency '${data.currency}' (mapped: ${detectedCode}) not supported.`);
                 }
             }
 
@@ -1678,9 +1702,17 @@ async function scanReceipt(file) {
             const data = result.data;
             if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
 
+            // Symbol Mapping for Receipt
+            let displayCurrency = data.currency;
+            const symbolMap = {
+                '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '元': 'CNY', 'CN¥': 'CNY',
+                '₩': 'KRW', '฿': 'THB', '₫': 'VND', '₱': 'PHP', 'Rp': 'IDR', '₹': 'INR'
+            };
+            if (symbolMap[displayCurrency]) displayCurrency = symbolMap[displayCurrency];
+
             let html = `<strong>📅 날짜:</strong> ${data.date || '미상'}<br>`;
             html += `<strong>🏪 상호:</strong> ${data.store || '미상'}<br>`;
-            html += `<strong>💰 총액:</strong> ${data.total} ${data.currency}<br>`;
+            html += `<strong>💰 총액:</strong> ${data.total} ${displayCurrency}<br>`;
             html += `<strong>💳 결제:</strong> ${data.paymentMethod || '미상'}<br>`;
             html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
 
@@ -1701,7 +1733,7 @@ async function scanReceipt(file) {
                 elements.saveReceiptBtn = newBtn;
                 elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
                 elements.saveReceiptBtn.disabled = false;
-                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet(data);
+                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet({ ...data, currency: displayCurrency });
             }
 
         } else {
