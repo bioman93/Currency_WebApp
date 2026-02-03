@@ -2620,7 +2620,8 @@ function initOCRListeners() {
 
 document.addEventListener('DOMContentLoaded', () => {
     init();
-    initOCRListeners();
+    // Delay initialization slightly to ensure DOM is ready
+    setTimeout(initOCRListeners, 200);
 });
 
 // ==========================================
@@ -2649,7 +2650,7 @@ async function scanPriceTag(file) {
 
             // 1. Auto-set Currency
             if (data.currency) {
-                const detectedCode = data.currency.toUpperCase();
+                const detectedCode = data.currency.trim().toUpperCase();
                 const mapped = state.currencyList.find(c => c.code === detectedCode);
 
                 if (mapped && detectedCode !== state.selectedCurrency) {
@@ -2660,7 +2661,7 @@ async function scanPriceTag(file) {
 
             // 2. Auto-set Amount
             if (data.total) {
-                setInput(data.total); // Use setInput for consistent UI updates
+                setInput(data.total);
 
                 // Visual Feedback
                 elements.localAmount.style.backgroundColor = '#e8f5e9'; // Light Green
@@ -2680,13 +2681,64 @@ async function scanPriceTag(file) {
     }
 }
 
+// Mode 2: Receipt Scan
+async function scanReceipt(file) {
+    if (elements.receiptResult) elements.receiptResult.style.display = 'block';
+    if (elements.receiptStatus) elements.receiptStatus.textContent = "AI가 영수증을 상세 분석 중입니다... (약 5-7초)";
+    if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
+    if (elements.saveReceiptBtn) elements.saveReceiptBtn.style.display = 'none';
+
+    try {
+        const base64Image = await preprocessImage(file);
+        const result = await callGeminiOCR(base64Image, 'receipt');
+
+        if (result.success && result.data) {
+            const data = result.data;
+            if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
+
+            let html = `<strong>📅 날짜:</strong> ${data.date || '미상'}<br>`;
+            html += `<strong>🏪 상호:</strong> ${data.store || '미상'}<br>`;
+            html += `<strong>💰 총액:</strong> ${data.total} ${data.currency}<br>`;
+            html += `<strong>💳 결제:</strong> ${data.paymentMethod || '미상'}<br>`;
+            html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
+
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    html += `- ${item.name}: ${item.price}<br>`;
+                });
+            } else {
+                html += `(세부 품목 없음)<br>`;
+            }
+
+            if (elements.receiptPreview) elements.receiptPreview.innerHTML = html;
+
+            if (elements.saveReceiptBtn) {
+                elements.saveReceiptBtn.style.display = 'block';
+                const newBtn = elements.saveReceiptBtn.cloneNode(true);
+                elements.saveReceiptBtn.parentNode.replaceChild(newBtn, elements.saveReceiptBtn);
+                elements.saveReceiptBtn = newBtn;
+                elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
+                elements.saveReceiptBtn.disabled = false;
+                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet(data);
+            }
+
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (e) {
+        if (elements.receiptStatus) elements.receiptStatus.textContent = "❌ 오류: " + e.message;
+    } finally {
+        if (elements.receiptInput) elements.receiptInput.value = '';
+    }
+}
+
 // setInput - Fixed Clear Button Visibility
 function setInput(val) {
     if (elements.localAmount) {
         elements.localAmount.value = val;
         calculate();
 
-        // Manual toggle of clear button if function exists or manual check
+        // Manual toggle of clear button
         const btn = document.querySelector(`.clear-btn[data-target="localAmount"]`);
         if (btn) {
             if (val && val.toString().length > 0) btn.classList.add('visible');
@@ -2697,7 +2749,7 @@ function setInput(val) {
 
 // initOCRListeners - Robust Event Binding
 function initOCRListeners() {
-    console.log("Initializing OCR Listeners (Overwritten)...");
+    console.log("Initializing OCR Listeners (Robust)...");
 
     // 1. Fast Price Tag Scan
     if (elements.cameraBtn && elements.cameraInput) {
