@@ -153,13 +153,20 @@ const elements = {
     signOutBtn: document.getElementById('signOutBtn'),
     cameraLockedMsg: document.getElementById('cameraLockedMsg'),
 
-    // OCR Elements
+    // OCR & Receipt Elements
     cameraSection: document.getElementById('cameraSection'),
     cameraBtn: document.getElementById('cameraBtn'),
     cameraInput: document.getElementById('cameraInput'),
-    ocrResult: document.getElementById('ocrResult'),
-    ocrStatus: document.getElementById('ocrStatus'),
-    ocrPrices: document.getElementById('ocrPrices')
+
+    // Receipt Manager
+    receiptManagerBtn: document.getElementById('receiptManagerBtn'),
+    receiptModal: document.getElementById('receiptModal'),
+    receiptCameraBtn: document.getElementById('receiptCameraBtn'),
+    receiptInput: document.getElementById('receiptInput'),
+    receiptResult: document.getElementById('receiptResult'),
+    receiptStatus: document.getElementById('receiptStatus'),
+    receiptPreview: document.getElementById('receiptPreview'),
+    saveReceiptBtn: document.getElementById('saveReceiptBtn')
 };
 
 
@@ -203,8 +210,10 @@ function updateUIForLoginState() {
         const gBtn = document.querySelector('.g_id_signin');
         if (gBtn) gBtn.style.display = 'none';
 
-        // Show Profile
+        // Show Profile & Receipt Mgr
         elements.userProfile.style.display = 'flex';
+        if (elements.receiptManagerBtn) elements.receiptManagerBtn.style.display = 'block';
+
         elements.userAvatar.src = authState.user.picture;
         elements.userName.textContent = authState.user.given_name || authState.user.name;
 
@@ -1293,6 +1302,130 @@ function preprocessImage(imageFile) {
     });
 }
 
+// ===================================
+// Receipt Modal Logic
+// ===================================
+
+function openReceiptModal() {
+    if (elements.receiptModal) elements.receiptModal.style.display = 'flex';
+    resetReceiptModal();
+}
+
+function closeReceiptModal() {
+    if (elements.receiptModal) elements.receiptModal.style.display = 'none';
+}
+
+function resetReceiptModal() {
+    if (elements.receiptResult) elements.receiptResult.style.display = 'none';
+    if (elements.saveReceiptBtn) {
+        elements.saveReceiptBtn.style.display = 'none';
+        elements.saveReceiptBtn.onclick = null;
+        elements.saveReceiptBtn.disabled = false;
+        elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
+    }
+    if (elements.receiptStatus) elements.receiptStatus.textContent = "영수증을 촬영하거나 업로드하세요.";
+    if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
+}
+
+// ===================================
+// AI Logic (Dual Mode)
+// ===================================
+
+// Mode 1: Fast Price Tag Scan (Main Screen)
+async function scanPriceTag(file) {
+    if (!authState.isLoggedIn) {
+        alert("로그인이 필요한 기능입니다.");
+        return;
+    }
+
+    const originalText = elements.cameraBtn.innerHTML;
+    elements.cameraBtn.innerHTML = '<span>⏳ 분석 중...</span>';
+    elements.cameraBtn.disabled = true;
+
+    try {
+        const base64Image = await preprocessImage(file);
+
+        // Call Gemini with 'price_tag' mode
+        const result = await callGeminiOCR(base64Image, 'price_tag');
+
+        if (result.success && result.data) {
+            const data = result.data;
+
+            // 1. Auto-set Currency
+            if (data.currency && data.currency !== state.selectedCurrency) {
+                const mapped = state.currencyList.find(c => c.code === data.currency);
+                if (mapped) selectCurrency(data.currency);
+            }
+
+            // 2. Auto-set Amount
+            if (data.total) {
+                elements.localAmount.value = data.total;
+                calculate();
+                // Visual Feedback
+                elements.localAmount.style.backgroundColor = '#e8f5e9'; // Light Green
+                setTimeout(() => elements.localAmount.style.backgroundColor = '', 500);
+            } else {
+                alert("가격 정보를 찾을 수 없습니다.");
+            }
+        } else {
+            throw new Error(result.error || "분석 실패");
+        }
+    } catch (e) {
+        alert("오류: " + e.message);
+    } finally {
+        elements.cameraBtn.innerHTML = originalText;
+        elements.cameraBtn.disabled = false;
+        elements.cameraInput.value = '';
+    }
+}
+
+// Mode 2: Detailed Receipt Scan (Modal)
+async function scanReceipt(file) {
+    if (elements.receiptResult) elements.receiptResult.style.display = 'block';
+    if (elements.receiptStatus) elements.receiptStatus.textContent = "AI가 영수증을 상세 분석 중입니다... (약 5-7초)";
+    if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
+    if (elements.saveReceiptBtn) elements.saveReceiptBtn.style.display = 'none';
+
+    try {
+        const base64Image = await preprocessImage(file);
+        const result = await callGeminiOCR(base64Image, 'receipt');
+
+        if (result.success && result.data) {
+            const data = result.data;
+            if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
+
+            // Display Preview
+            let html = `<strong>📅 날짜:</strong> ${data.date || '미상'}<br>`;
+            html += `<strong>🏪 상호:</strong> ${data.store || '미상'}<br>`;
+            html += `<strong>💰 총액:</strong> ${data.total} ${data.currency}<br>`;
+            html += `<strong>💳 결제:</strong> ${data.paymentMethod || '미상'}<br>`;
+            html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
+
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    html += `- ${item.name}: ${item.price}<br>`;
+                });
+            } else {
+                html += `(세부 품목 없음)<br>`;
+            }
+
+            if (elements.receiptPreview) elements.receiptPreview.innerHTML = html;
+            if (elements.saveReceiptBtn) {
+                elements.saveReceiptBtn.style.display = 'block';
+                // Bind Save Action
+                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet(data);
+            }
+
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (e) {
+        if (elements.receiptStatus) elements.receiptStatus.textContent = "❌ 오류: " + e.message;
+    } finally {
+        if (elements.receiptInput) elements.receiptInput.value = '';
+    }
+}
+
 // Image Processing & Gemini OCR
 async function processImage(file) {
     if (!file) return;
@@ -1375,112 +1508,95 @@ async function preprocessImage(file) {
     });
 }
 
-async function callGeminiOCR(base64Image) {
-    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'cors', // Text/plain is standard for GAS simple requests but we try standard JSON
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8', // GAS often requires text/plain for CORS
-        },
-        body: JSON.stringify({
-            action: 'ocr',
-            image: base64Image,
-            mimeType: 'image/jpeg'
-        })
-    });
-    return await response.json();
-}
+async function callGeminiOCR(base64Image, mode) {
+    try {
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                action: 'ocr',
+                image: base64Image,
+                mode: mode || 'price_tag', // Pass mode to backend
+                mimeType: 'image/jpeg'
+            })
+        });
 
-function applyOCRResult(data) {
-    // Auto-select currency if provided and different
-    if (data.currency && data.currency !== state.selectedCurrency) {
-        const mapped = state.currencyList.find(c => c.code === data.currency);
-        if (mapped) {
-            selectCurrency(data.currency);
-        }
-    }
-
-    // Set Amount
-    if (data.total) {
-        elements.localAmount.value = data.total;
-        calculate();
-    }
-
-    // Show Items
-    if (data.items && data.items.length > 0) {
-        const html = data.items.map(item =>
-            `<div class="price-chip" onclick="setInput(${item.price})">
-                ${item.name}: ${item.price}
-             </div>`
-        ).join('');
-        elements.ocrPrices.innerHTML = `<div style="margin-top:5px; font-size:0.85em;">감지된 항목:</div>${html}`;
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        return await response.json();
+    } catch (e) {
+        console.error(e);
+        throw new Error("네트워크 오류: " + e.message);
     }
 }
 
-function showSaveButton(receiptData) {
-    const btnId = 'saveToSheetBtn';
-    let btn = document.getElementById(btnId);
+async function saveReceiptToSheet(receiptData) {
+    const btn = elements.saveReceiptBtn;
+    if (!btn) return;
 
-    if (!btn) {
-        btn = document.createElement('button');
-        btn.id = btnId;
-        btn.className = 'confirm-btn'; // Style reuse
-        btn.style.marginTop = '10px';
-        btn.style.width = '100%';
-        btn.innerHTML = '💾 구글 시트에 저장';
-        elements.ocrResult.appendChild(btn);
-    }
+    btn.disabled = true;
+    btn.textContent = "저장 중...";
 
-    btn.onclick = async () => {
-        btn.disabled = true;
-        btn.textContent = '저장 중...';
+    try {
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                action: 'save',
+                userEmail: authState.user.email,
+                receiptData: receiptData
+            })
+        });
 
-        try {
-            const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'save',
-                    userEmail: authState.user.email,
-                    receiptData: receiptData
-                })
-            });
-            const res = await response.json();
-            if (res.success) {
-                alert('✅ 저장되었습니다!');
-                btn.style.display = 'none';
-            } else {
-                throw new Error(res.error);
-            }
-        } catch (e) {
-            alert('저장 실패: ' + e.message);
-            btn.disabled = false;
-            btn.textContent = '💾 구글 시트에 저장';
+        const res = await response.json();
+        if (res.success) {
+            alert("✅ 가계부에 저장되었습니다!");
+            closeReceiptModal();
+        } else {
+            throw new Error(res.error);
         }
-    };
+    } catch (e) {
+        alert("저장 실패: " + e.message);
+        btn.disabled = false;
+        btn.textContent = "💾 가계부에 저장";
+    }
 }
 
 function setInput(val) {
-    elements.localAmount.value = val;
-    calculate();
+    if (elements.localAmount) {
+        elements.localAmount.value = val;
+        calculate();
+    }
 }
 
 // Initialize OCR event listeners
 function initOCRListeners() {
-    if (!elements.cameraBtn || !elements.cameraInput) return;
+    // 1. Fast Price Tag Scan (Main Screen)
+    if (elements.cameraBtn && elements.cameraInput) {
+        elements.cameraBtn.addEventListener('click', () => {
+            elements.cameraInput.click();
+        });
+        elements.cameraInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) scanPriceTag(file);
+        });
+    }
 
-    elements.cameraBtn.addEventListener('click', () => {
-        elements.cameraInput.click();
-    });
+    // 2. Receipt Manager Modal
+    if (elements.receiptManagerBtn) {
+        elements.receiptManagerBtn.addEventListener('click', openReceiptModal);
+    }
 
-    elements.cameraInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            processImage(file);
-        }
-        // Reset input to allow same file selection
-        e.target.value = '';
-    });
+    if (elements.receiptCameraBtn && elements.receiptInput) {
+        elements.receiptCameraBtn.addEventListener('click', () => {
+            elements.receiptInput.click();
+        });
+        elements.receiptInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) scanReceipt(file);
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

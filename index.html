@@ -71,6 +71,24 @@
                 <h1 class="app-title">💱 환율 계산기</h1>
 
                 <div class="header-right">
+                    <!-- Receipt Manager Button -->
+                    <button id="receiptManagerBtn" class="icon-btn" aria-label="영수증 관리" style="display:none;">
+                        <span style="font-size: 1.2rem;">🧾</span>
+                    </button>
+
+                    <!-- User Profile (Hidden by default) -->
+                    <div id="userProfile" class="user-profile">
+                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
+                        <span id="userName">User</span>
+                        <!-- SignOut moved directly here -->
+                        <button id="signOutBtn" class="icon-btn" aria-label="로그아웃">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
                     <!-- Google Sign-In Button -->
                     <div id="g_id_onload"
                         data-client_id="708082750675-162qtq9rpl4g5t6247dr87joitbksaua.apps.googleusercontent.com"
@@ -78,19 +96,6 @@
                     </div>
                     <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline"
                         data-text="signin_with" data-size="medium">
-                    </div>
-
-                    <!-- User Profile (Hidden by default) -->
-                    <div id="userProfile" class="user-profile">
-                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
-                        <span id="userName">User</span>
-                        <button id="signOutBtn" class="icon-btn"
-                            style="width:24px; height:24px; min-width:unset; padding:0;" aria-label="로그아웃">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M18 6L6 18M6 6l12 12"></path>
-                            </svg>
-                        </button>
                     </div>
 
                     <button id="refreshRateBtn" class="refresh-btn" aria-label="환율 새로고침">

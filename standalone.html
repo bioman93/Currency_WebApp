@@ -1,14 +1,14 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="?ㅼ떆媛??섏쑉 怨꾩궛湲?- ?꾩? ?뷀룓瑜???쒕?援??먰솕濡?利됱떆 蹂??>
+    <meta name="description" content="실시간 환율 계산기 - 현지 화폐를 대한민국 원화로 즉시 변환">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>?섏쑉 怨꾩궛湲?| Currency Calculator</title>
+    <title>환율 계산기 | Currency Calculator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -818,9 +818,27 @@ body {
         <!-- Header -->
         <header class="app-header">
             <div class="header-content">
-                <h1 class="app-title">?뮦 ?섏쑉 怨꾩궛湲?/h1>
+                <h1 class="app-title">💱 환율 계산기</h1>
 
                 <div class="header-right">
+                    <!-- Receipt Manager Button -->
+                    <button id="receiptManagerBtn" class="icon-btn" aria-label="영수증 관리" style="display:none;">
+                        <span style="font-size: 1.2rem;">🧾</span>
+                    </button>
+
+                    <!-- User Profile (Hidden by default) -->
+                    <div id="userProfile" class="user-profile">
+                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
+                        <span id="userName">User</span>
+                        <!-- SignOut moved directly here -->
+                        <button id="signOutBtn" class="icon-btn" aria-label="로그아웃">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
                     <!-- Google Sign-In Button -->
                     <div id="g_id_onload"
                         data-client_id="708082750675-162qtq9rpl4g5t6247dr87joitbksaua.apps.googleusercontent.com"
@@ -830,20 +848,7 @@ body {
                         data-text="signin_with" data-size="medium">
                     </div>
 
-                    <!-- User Profile (Hidden by default) -->
-                    <div id="userProfile" class="user-profile">
-                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
-                        <span id="userName">User</span>
-                        <button id="signOutBtn" class="icon-btn"
-                            style="width:24px; height:24px; min-width:unset; padding:0;" aria-label="濡쒓렇?꾩썐">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M18 6L6 18M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-
-                    <button id="refreshRateBtn" class="refresh-btn" aria-label="?섏쑉 ?덈줈怨좎묠">
+                    <button id="refreshRateBtn" class="refresh-btn" aria-label="환율 새로고침">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M23 4v6h-6M1 20v-6h6" />
@@ -858,46 +863,46 @@ body {
         <main class="calculator-main">
             <!-- Amount Input -->
             <section class="amount-section">
-                <label for="localAmount" class="section-label">?꾩? 湲덉븸</label>
+                <label for="localAmount" class="section-label">현지 금액</label>
                 <div class="amount-input-wrapper">
                     <span class="currency-symbol" id="currencySymbol">$</span>
                     <input type="text" id="localAmount" class="amount-input" placeholder="0" inputmode="decimal"
                         autocomplete="off">
-                    <button class="clear-btn" data-target="localAmount" aria-label="吏?곌린">C</button>
+                    <button class="clear-btn" data-target="localAmount" aria-label="지우기">C</button>
                 </div>
 
                 <!-- Camera Section (Mobile Only) -->
                 <div class="camera-section" id="cameraSection" style="display: none;">
-                    <button class="camera-btn" id="cameraBtn" aria-label="媛寃⑺몴 珥ъ쁺">
+                    <button class="camera-btn" id="cameraBtn" aria-label="가격표 촬영">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <rect x="3" y="6" width="18" height="14" rx="2" />
                             <circle cx="12" cy="13" r="4" />
                             <path d="M7 6V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2" />
                         </svg>
-                        <span>?벝 媛寃⑺몴 珥ъ쁺 (AI)</span>
+                        <span>📸 가격표 촬영 (AI)</span>
                     </button>
                     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
                 </div>
 
                 <div id="cameraLockedMsg" class="camera-locked-message">
-                    <p>?벝 媛寃⑺몴 ?먮룞 ?몄떇</p>
-                    <small>濡쒓렇?명븯硫?AI媛 媛寃⑹쓣 ?쎌뼱以띾땲??/small>
+                    <p>📸 가격표 자동 인식</p>
+                    <small>로그인하면 AI가 가격을 읽어줍니다</small>
                 </div>
 
 
                 <!-- OCR Result Preview -->
                 <div class="ocr-result" id="ocrResult" style="display:none;">
-                    <div class="ocr-status" id="ocrStatus">?몄떇 以?..</div>
+                    <div class="ocr-status" id="ocrStatus">인식 중...</div>
                     <div class="ocr-prices" id="ocrPrices"></div>
                 </div>
             </section>
 
             <!-- Result Section (Placed prominently after input) -->
             <section class="result-section">
-                <div class="result-label">??쒕?援??먰솕</div>
+                <div class="result-label">대한민국 원화</div>
                 <div class="result-amount">
-                    <span class="result-symbol">??/span>
+                    <span class="result-symbol">₩</span>
                     <span class="result-value" id="resultValue">0</span>
                 </div>
                 <div class="result-breakdown" id="resultBreakdown">
@@ -908,49 +913,49 @@ body {
             <!-- Options Section (Collapsible) -->
             <section class="options-section">
                 <button class="options-toggle" id="optionsToggle">
-                    <span>異붽? ?듭뀡</span>
-                    <span class="toggle-icon" id="toggleIcon">??/span>
+                    <span>추가 옵션</span>
+                    <span class="toggle-icon" id="toggleIcon">▼</span>
                 </button>
 
                 <div class="options-content" id="optionsContent">
                     <!-- Service Charge -->
                     <div class="option-group">
-                        <label class="option-label">?쒕퉬?ㅼ감吏 (??</label>
+                        <label class="option-label">서비스차지 (팁)</label>
                         <div class="option-row">
                             <div class="option-type-selector">
                                 <button class="type-btn active" data-type="percent" id="tipPercentBtn">%</button>
-                                <button class="type-btn" data-type="fixed" id="tipFixedBtn">?뺤븸</button>
-                                <button class="type-btn" data-type="total" id="tipTotalBtn">?⑹궛</button>
+                                <button class="type-btn" data-type="fixed" id="tipFixedBtn">정액</button>
+                                <button class="type-btn" data-type="total" id="tipTotalBtn">합산</button>
                             </div>
                             <div class="option-input-wrapper">
                                 <input type="text" id="serviceCharge" class="option-input" placeholder="0"
                                     inputmode="decimal" autocomplete="off">
                                 <span class="option-unit" id="serviceChargeUnit">%</span>
                                 <button class="clear-btn option-clear" data-target="serviceCharge"
-                                    aria-label="吏?곌린">C</button>
+                                    aria-label="지우기">C</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Tax Rate -->
                     <div class="option-group">
-                        <label class="option-label">?멸툑??/label>
+                        <label class="option-label">세금율</label>
                         <div class="option-input-wrapper">
                             <input type="text" id="taxRate" class="option-input" placeholder="0" inputmode="decimal"
                                 autocomplete="off">
                             <span class="option-unit">%</span>
-                            <button class="clear-btn option-clear" data-target="taxRate" aria-label="吏?곌린">C</button>
+                            <button class="clear-btn option-clear" data-target="taxRate" aria-label="지우기">C</button>
                         </div>
                     </div>
 
                     <!-- Fee Rate -->
                     <div class="option-group">
-                        <label class="option-label">?섏닔猷뚯쑉</label>
+                        <label class="option-label">수수료율</label>
                         <div class="option-input-wrapper">
                             <input type="text" id="feeRate" class="option-input" placeholder="0" inputmode="decimal"
                                 autocomplete="off">
                             <span class="option-unit">%</span>
-                            <button class="clear-btn option-clear" data-target="feeRate" aria-label="吏?곌린">C</button>
+                            <button class="clear-btn option-clear" data-target="feeRate" aria-label="지우기">C</button>
                         </div>
                     </div>
                 </div>
@@ -959,20 +964,20 @@ body {
             <!-- Currency Selection (Moved to bottom) -->
             <section class="currency-section">
                 <div class="currency-selector">
-                    <label class="section-label">?꾩? ?뷀룓 蹂寃?/label>
+                    <label class="section-label">현지 화폐 변경</label>
                     <div class="currency-interaction-wrapper">
                         <!-- Display Mode -->
                         <div id="currencyDisplay" class="currency-display" role="button" tabindex="0">
-                            <span id="selectedCurrencyText" class="display-text">誘멸뎅 (USD)</span>
-                            <span class="edit-hint">??蹂寃?/span>
+                            <span id="selectedCurrencyText" class="display-text">미국 (USD)</span>
+                            <span class="edit-hint">✎ 변경</span>
                         </div>
 
                         <!-- Input Mode -->
                         <div id="currencySearchWrapper" class="currency-search-wrapper" style="display: none;">
                             <div class="search-input-container">
                                 <input type="text" id="currencySearchInput" class="main-search-input"
-                                    placeholder="援??紐??먮뒗 ?뷀룓紐?寃??.." autocomplete="off">
-                                <button id="closeSearchBtn" class="close-search-btn" aria-label="?リ린">??/button>
+                                    placeholder="국가명 또는 화폐명 검색..." autocomplete="off">
+                                <button id="closeSearchBtn" class="close-search-btn" aria-label="닫기">✕</button>
                             </div>
 
                             <div class="dropdown-list" id="currencyOptionsList">
@@ -989,13 +994,13 @@ body {
                             <path
                                 d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                         </svg>
-                        <span>?뙇 ??꾩〈?쇰줈 ?뷀룓 媛먯?</span>
+                        <span>🌍 타임존으로 화폐 감지</span>
                     </button>
 
                     <div class="current-rate" style="margin-top: 10px;">
-                        <span>?곸슜 ?섏쑉: </span>
+                        <span>적용 환율: </span>
                         <strong id="currentRateDisplay">-</strong>
-                        <span class="rate-unit">??/span>
+                        <span class="rate-unit">원</span>
                     </div>
                 </div>
             </section>
@@ -1003,17 +1008,17 @@ body {
 
         <!-- Footer -->
         <footer class="app-footer">
-            <div class="rate-info-footer" id="rateUpdateTime" style="margin-bottom: 4px; font-weight: 500;">?섏쑉 ?뺣낫 濡쒕뵫
-                以?..</div>
-            <p id="sourceInfo">?섏쑉 ?뺣낫: Global Standard API</p>
-            <p class="disclaimer">???ㅼ젣 ?섏쟾 ???섏쑉? ?ㅻ? ???덉뒿?덈떎</p>
+            <div class="rate-info-footer" id="rateUpdateTime" style="margin-bottom: 4px; font-weight: 500;">환율 정보 로딩
+                중...</div>
+            <p id="sourceInfo">환율 정보: Global Standard API</p>
+            <p class="disclaimer">※ 실제 환전 시 환율은 다를 수 있습니다</p>
         </footer>
     </div>
 
     <script>
 /**
- * ?섏쑉 怨꾩궛湲???- Currency Exchange Calculator
- * ??쒕?援??먰솕(KRW) 湲곗? ?ㅼ떆媛??섏쑉 怨꾩궛
+ * 환율 계산기 앱 - Currency Exchange Calculator
+ * 대한민국 원화(KRW) 기준 실시간 환율 계산
  */
 
 // ===================================
@@ -1035,79 +1040,79 @@ const CONFIG = {
 };
 
 const FALLBACK_DATA = [
-    { "symbolCode": "USD", "name": "誘멸뎅 USD", "stockExchangeType": { "nationCode": "USA", "nationName": "誘멸뎅" }, "calcPrice": "1423.80", "closePrice": "1,423.80", "unit": "KRW" },
-    { "symbolCode": "EUR", "name": "?좊읇 EUR", "stockExchangeType": { "nationCode": "EU", "nationName": "?좊읇?고빀" }, "calcPrice": "1708.63", "closePrice": "1,708.63", "unit": "KRW" },
-    { "symbolCode": "JPY", "name": "?쇰낯 JPY (100??", "stockExchangeType": { "nationCode": "JPN", "nationName": "?쇰낯" }, "calcPrice": "933.24", "closePrice": "933.24", "unit": "KRW" },
-    { "symbolCode": "CNY", "name": "以묎뎅 CNY", "stockExchangeType": { "nationCode": "CHN", "nationName": "以묎뎅" }, "calcPrice": "205.21", "closePrice": "205.21", "unit": "KRW" },
-    { "symbolCode": "HKD", "name": "?띿쉘 HKD", "stockExchangeType": { "nationCode": "HKG", "nationName": "?띿쉘" }, "calcPrice": "182.50", "closePrice": "182.50", "unit": "KRW" },
-    { "symbolCode": "TWD", "name": "?留?TWD", "stockExchangeType": { "nationCode": "TWN", "nationName": "?留? }, "calcPrice": "44.80", "closePrice": "44.80", "unit": "KRW" },
-    { "symbolCode": "GBP", "name": "?곴뎅 GBP", "stockExchangeType": { "nationCode": "GBR", "nationName": "?곴뎅" }, "calcPrice": "1800.50", "closePrice": "1,800.50", "unit": "KRW" },
-    { "symbolCode": "CAD", "name": "罹먮굹??CAD", "stockExchangeType": { "nationCode": "CAN", "nationName": "罹먮굹?? }, "calcPrice": "1050.20", "closePrice": "1,050.20", "unit": "KRW" },
-    { "symbolCode": "CHF", "name": "?ㅼ쐞??CHF", "stockExchangeType": { "nationCode": "CHE", "nationName": "?ㅼ쐞?? }, "calcPrice": "1580.40", "closePrice": "1,580.40", "unit": "KRW" },
-    { "symbolCode": "AUD", "name": "?몄＜ AUD", "stockExchangeType": { "nationCode": "AUS", "nationName": "?몄＜" }, "calcPrice": "920.30", "closePrice": "920.30", "unit": "KRW" },
-    { "symbolCode": "SGD", "name": "?깃??щⅤ SGD", "stockExchangeType": { "nationCode": "SGP", "nationName": "?깃??щⅤ" }, "calcPrice": "1050.80", "closePrice": "1,050.80", "unit": "KRW" },
-    { "symbolCode": "THB", "name": "?쒓뎅 THB", "stockExchangeType": { "nationCode": "THA", "nationName": "?쒓뎅" }, "calcPrice": "41.50", "closePrice": "41.50", "unit": "KRW" },
-    { "symbolCode": "IDR", "name": "?몃룄?ㅼ떆??IDR 100", "stockExchangeType": { "nationCode": "IDN", "nationName": "?몃룄?ㅼ떆?? }, "calcPrice": "9.00", "closePrice": "9.00", "unit": "KRW" },
-    { "symbolCode": "VND", "name": "踰좏듃??VND 100", "stockExchangeType": { "nationCode": "VNM", "nationName": "踰좏듃?? }, "calcPrice": "6.00", "closePrice": "6.00", "unit": "KRW" },
-    { "symbolCode": "MYR", "name": "留먮젅?댁떆??MYR", "stockExchangeType": { "nationCode": "MYS", "nationName": "留먮젅?댁떆?? }, "calcPrice": "318.50", "closePrice": "318.50", "unit": "KRW" },
-    { "symbolCode": "PHP", "name": "?꾨━? PHP", "stockExchangeType": { "nationCode": "PHL", "nationName": "?꾨━?" }, "calcPrice": "25.20", "closePrice": "25.20", "unit": "KRW" },
-    { "symbolCode": "ZAR", "name": "?⑥븘怨?ZAR", "stockExchangeType": { "nationCode": "ZAF", "nationName": "?⑥븘?꾨━移닿났?붽뎅" }, "calcPrice": "78.50", "closePrice": "78.50", "unit": "KRW" },
-    { "symbolCode": "RUB", "name": "?ъ떆??RUB", "stockExchangeType": { "nationCode": "RUS", "nationName": "?ъ떆?? }, "calcPrice": "15.20", "closePrice": "15.20", "unit": "KRW" },
-    { "symbolCode": "TRY", "name": "?瑜댄궎??TRY", "stockExchangeType": { "nationCode": "TUR", "nationName": "?瑜댄궎?? }, "calcPrice": "40.50", "closePrice": "40.50", "unit": "KRW" },
-    { "symbolCode": "BRL", "name": "釉뚮씪吏?BRL", "stockExchangeType": { "nationCode": "BRA", "nationName": "釉뚮씪吏? }, "calcPrice": "245.20", "closePrice": "245.20", "unit": "KRW" },
-    { "symbolCode": "MXN", "name": "硫뺤떆肄?MXN", "stockExchangeType": { "nationCode": "MEX", "nationName": "硫뺤떆肄? }, "calcPrice": "72.10", "closePrice": "72.10", "unit": "KRW" },
-    { "symbolCode": "AED", "name": "UAE AED", "stockExchangeType": { "nationCode": "ARE", "nationName": "?꾨엻?먮?由ы듃" }, "calcPrice": "387.60", "closePrice": "387.60", "unit": "KRW" },
-    { "symbolCode": "INR", "name": "?몃룄 INR", "stockExchangeType": { "nationCode": "IND", "nationName": "?몃룄" }, "calcPrice": "16.80", "closePrice": "16.80", "unit": "KRW" },
-    { "symbolCode": "SAR", "name": "?ъ슦??SAR", "stockExchangeType": { "nationCode": "SAU", "nationName": "?ъ슦?붿븘?쇰퉬?? }, "calcPrice": "379.50", "closePrice": "379.50", "unit": "KRW" },
-    { "symbolCode": "NZD", "name": "?댁쭏?쒕뱶 NZD", "stockExchangeType": { "nationCode": "NZL", "nationName": "?댁쭏?쒕뱶" }, "calcPrice": "850.20", "closePrice": "850.20", "unit": "KRW" },
-    { "symbolCode": "CZK", "name": "泥댁퐫 CZK", "stockExchangeType": { "nationCode": "CZE", "nationName": "泥댁퐫" }, "calcPrice": "60.50", "closePrice": "60.50", "unit": "KRW" },
-    { "symbolCode": "PLN", "name": "?대???PLN", "stockExchangeType": { "nationCode": "POL", "nationName": "?대??? }, "calcPrice": "355.40", "closePrice": "355.40", "unit": "KRW" },
-    { "symbolCode": "HUF", "name": "?앷?由?HUF", "stockExchangeType": { "nationCode": "HUN", "nationName": "?앷?由? }, "calcPrice": "3.80", "closePrice": "3.80", "unit": "KRW" }
+    { "symbolCode": "USD", "name": "미국 USD", "stockExchangeType": { "nationCode": "USA", "nationName": "미국" }, "calcPrice": "1423.80", "closePrice": "1,423.80", "unit": "KRW" },
+    { "symbolCode": "EUR", "name": "유럽 EUR", "stockExchangeType": { "nationCode": "EU", "nationName": "유럽연합" }, "calcPrice": "1708.63", "closePrice": "1,708.63", "unit": "KRW" },
+    { "symbolCode": "JPY", "name": "일본 JPY (100엔)", "stockExchangeType": { "nationCode": "JPN", "nationName": "일본" }, "calcPrice": "933.24", "closePrice": "933.24", "unit": "KRW" },
+    { "symbolCode": "CNY", "name": "중국 CNY", "stockExchangeType": { "nationCode": "CHN", "nationName": "중국" }, "calcPrice": "205.21", "closePrice": "205.21", "unit": "KRW" },
+    { "symbolCode": "HKD", "name": "홍콩 HKD", "stockExchangeType": { "nationCode": "HKG", "nationName": "홍콩" }, "calcPrice": "182.50", "closePrice": "182.50", "unit": "KRW" },
+    { "symbolCode": "TWD", "name": "대만 TWD", "stockExchangeType": { "nationCode": "TWN", "nationName": "대만" }, "calcPrice": "44.80", "closePrice": "44.80", "unit": "KRW" },
+    { "symbolCode": "GBP", "name": "영국 GBP", "stockExchangeType": { "nationCode": "GBR", "nationName": "영국" }, "calcPrice": "1800.50", "closePrice": "1,800.50", "unit": "KRW" },
+    { "symbolCode": "CAD", "name": "캐나다 CAD", "stockExchangeType": { "nationCode": "CAN", "nationName": "캐나다" }, "calcPrice": "1050.20", "closePrice": "1,050.20", "unit": "KRW" },
+    { "symbolCode": "CHF", "name": "스위스 CHF", "stockExchangeType": { "nationCode": "CHE", "nationName": "스위스" }, "calcPrice": "1580.40", "closePrice": "1,580.40", "unit": "KRW" },
+    { "symbolCode": "AUD", "name": "호주 AUD", "stockExchangeType": { "nationCode": "AUS", "nationName": "호주" }, "calcPrice": "920.30", "closePrice": "920.30", "unit": "KRW" },
+    { "symbolCode": "SGD", "name": "싱가포르 SGD", "stockExchangeType": { "nationCode": "SGP", "nationName": "싱가포르" }, "calcPrice": "1050.80", "closePrice": "1,050.80", "unit": "KRW" },
+    { "symbolCode": "THB", "name": "태국 THB", "stockExchangeType": { "nationCode": "THA", "nationName": "태국" }, "calcPrice": "41.50", "closePrice": "41.50", "unit": "KRW" },
+    { "symbolCode": "IDR", "name": "인도네시아 IDR 100", "stockExchangeType": { "nationCode": "IDN", "nationName": "인도네시아" }, "calcPrice": "9.00", "closePrice": "9.00", "unit": "KRW" },
+    { "symbolCode": "VND", "name": "베트남 VND 100", "stockExchangeType": { "nationCode": "VNM", "nationName": "베트남" }, "calcPrice": "6.00", "closePrice": "6.00", "unit": "KRW" },
+    { "symbolCode": "MYR", "name": "말레이시아 MYR", "stockExchangeType": { "nationCode": "MYS", "nationName": "말레이시아" }, "calcPrice": "318.50", "closePrice": "318.50", "unit": "KRW" },
+    { "symbolCode": "PHP", "name": "필리핀 PHP", "stockExchangeType": { "nationCode": "PHL", "nationName": "필리핀" }, "calcPrice": "25.20", "closePrice": "25.20", "unit": "KRW" },
+    { "symbolCode": "ZAR", "name": "남아공 ZAR", "stockExchangeType": { "nationCode": "ZAF", "nationName": "남아프리카공화국" }, "calcPrice": "78.50", "closePrice": "78.50", "unit": "KRW" },
+    { "symbolCode": "RUB", "name": "러시아 RUB", "stockExchangeType": { "nationCode": "RUS", "nationName": "러시아" }, "calcPrice": "15.20", "closePrice": "15.20", "unit": "KRW" },
+    { "symbolCode": "TRY", "name": "튀르키예 TRY", "stockExchangeType": { "nationCode": "TUR", "nationName": "튀르키예" }, "calcPrice": "40.50", "closePrice": "40.50", "unit": "KRW" },
+    { "symbolCode": "BRL", "name": "브라질 BRL", "stockExchangeType": { "nationCode": "BRA", "nationName": "브라질" }, "calcPrice": "245.20", "closePrice": "245.20", "unit": "KRW" },
+    { "symbolCode": "MXN", "name": "멕시코 MXN", "stockExchangeType": { "nationCode": "MEX", "nationName": "멕시코" }, "calcPrice": "72.10", "closePrice": "72.10", "unit": "KRW" },
+    { "symbolCode": "AED", "name": "UAE AED", "stockExchangeType": { "nationCode": "ARE", "nationName": "아랍에미리트" }, "calcPrice": "387.60", "closePrice": "387.60", "unit": "KRW" },
+    { "symbolCode": "INR", "name": "인도 INR", "stockExchangeType": { "nationCode": "IND", "nationName": "인도" }, "calcPrice": "16.80", "closePrice": "16.80", "unit": "KRW" },
+    { "symbolCode": "SAR", "name": "사우디 SAR", "stockExchangeType": { "nationCode": "SAU", "nationName": "사우디아라비아" }, "calcPrice": "379.50", "closePrice": "379.50", "unit": "KRW" },
+    { "symbolCode": "NZD", "name": "뉴질랜드 NZD", "stockExchangeType": { "nationCode": "NZL", "nationName": "뉴질랜드" }, "calcPrice": "850.20", "closePrice": "850.20", "unit": "KRW" },
+    { "symbolCode": "CZK", "name": "체코 CZK", "stockExchangeType": { "nationCode": "CZE", "nationName": "체코" }, "calcPrice": "60.50", "closePrice": "60.50", "unit": "KRW" },
+    { "symbolCode": "PLN", "name": "폴란드 PLN", "stockExchangeType": { "nationCode": "POL", "nationName": "폴란드" }, "calcPrice": "355.40", "closePrice": "355.40", "unit": "KRW" },
+    { "symbolCode": "HUF", "name": "헝가리 HUF", "stockExchangeType": { "nationCode": "HUN", "nationName": "헝가리" }, "calcPrice": "3.80", "closePrice": "3.80", "unit": "KRW" }
 ];
 
 const CURRENCY_NAMES = {
-    'USD': { name: '誘멸뎅 ?щ윭', nation: '誘멸뎅' },
-    'EUR': { name: '?좊읇 ?좊줈', nation: '?좊읇?고빀' },
-    'JPY': { name: '?쇰낯 ??, nation: '?쇰낯' },
-    'CNY': { name: '以묎뎅 ?꾩븞', nation: '以묎뎅' },
-    'HKD': { name: '?띿쉘 ?щ윭', nation: '?띿쉘' },
-    'TWD': { name: '?留??щ윭', nation: '?留? },
-    'GBP': { name: '?곴뎅 ?뚯슫??, nation: '?곴뎅' },
-    'CAD': { name: '罹먮굹???щ윭', nation: '罹먮굹?? },
-    'CHF': { name: '?ㅼ쐞???꾨옉', nation: '?ㅼ쐞?? },
-    'SEK': { name: '?ㅼ썾???щ줈??, nation: '?ㅼ썾?? },
-    'AUD': { name: '?몄＜ ?щ윭', nation: '?몄＜' },
-    'NZD': { name: '?댁쭏?쒕뱶 ?щ윭', nation: '?댁쭏?쒕뱶' },
-    'CZK': { name: '泥댁퐫 肄붾（??, nation: '泥댁퐫' },
-    'TRY': { name: '?瑜댄궎??由щ씪', nation: '?瑜댄궎?? },
-    'MXN': { name: '硫뺤떆肄??섏냼', nation: '硫뺤떆肄? },
-    'PLN': { name: '?대???利덉썙??, nation: '?대??? },
-    'AED': { name: 'UAE ?붾Ⅴ??, nation: '?꾨엻?먮?由ы듃' },
-    'SGD': { name: '?깃??щⅤ ?щ윭', nation: '?깃??щⅤ' },
-    'THB': { name: '?쒓뎅 諛뷀듃', nation: '?쒓뎅' },
-    'MYR': { name: '留먮젅?댁떆??留곴퉫', nation: '留먮젅?댁떆?? },
-    'IDR': { name: '?몃룄?ㅼ떆??猷⑦뵾??, nation: '?몃룄?ㅼ떆?? },
-    'VND': { name: '踰좏듃????, nation: '踰좏듃?? },
-    'PHP': { name: '?꾨━? ?섏냼', nation: '?꾨━?' },
-    'RUB': { name: '?ъ떆??猷⑤툝', nation: '?ъ떆?? },
-    'ZAR': { name: '?⑥븘怨??쒕뱶', nation: '?⑥븘?꾨━移닿났?붽뎅' },
-    'BRL': { name: '釉뚮씪吏??덉븣', nation: '釉뚮씪吏? },
-    'INR': { name: '?몃룄 猷⑦뵾', nation: '?몃룄' },
-    'SAR': { name: '?ъ슦??由ъ뻹', nation: '?ъ슦?붿븘?쇰퉬?? },
-    'KWD': { name: '荑좎썾?댄듃 ?붾굹瑜?, nation: '荑좎썾?댄듃' },
-    'BHD': { name: '諛붾젅???붾굹瑜?, nation: '諛붾젅?? },
-    'QAR': { name: '移댄?瑜?由ъ뻹', nation: '移댄?瑜? },
-    'EGP': { name: '?댁쭛???뚯슫??, nation: '?댁쭛?? },
-    'HUF': { name: '?앷?由??щ┛??, nation: '?앷?由? },
-    'DKK': { name: '?대쭏???щ줈??, nation: '?대쭏?? },
-    'NOK': { name: '?몃Ⅴ?⑥씠 ?щ줈??, nation: '?몃Ⅴ?⑥씠' },
-    'ILS': { name: '?댁뒪?쇱뿕 ?곗펷', nation: '?댁뒪?쇱뿕' },
-    'JOD': { name: '?붾Ⅴ???붾굹瑜?, nation: '?붾Ⅴ?? },
-    'PKR': { name: '?뚰궎?ㅽ깂 猷⑦뵾', nation: '?뚰궎?ㅽ깂' },
-    'BDT': { name: '諛⑷??쇰뜲???移?, nation: '諛⑷??쇰뜲?? },
-    'MNT': { name: '紐쎄낏 ?ш렇由?, nation: '紐쎄낏' },
-    'KZT': { name: '移댁옄?먯뒪???↔쾶', nation: '移댁옄?먯뒪?? },
-    'BND': { name: '釉뚮（?섏씠 ?щ윭', nation: '釉뚮（?섏씠' }
+    'USD': { name: '미국 달러', nation: '미국' },
+    'EUR': { name: '유럽 유로', nation: '유럽연합' },
+    'JPY': { name: '일본 엔', nation: '일본' },
+    'CNY': { name: '중국 위안', nation: '중국' },
+    'HKD': { name: '홍콩 달러', nation: '홍콩' },
+    'TWD': { name: '대만 달러', nation: '대만' },
+    'GBP': { name: '영국 파운드', nation: '영국' },
+    'CAD': { name: '캐나다 달러', nation: '캐나다' },
+    'CHF': { name: '스위스 프랑', nation: '스위스' },
+    'SEK': { name: '스웨덴 크로나', nation: '스웨덴' },
+    'AUD': { name: '호주 달러', nation: '호주' },
+    'NZD': { name: '뉴질랜드 달러', nation: '뉴질랜드' },
+    'CZK': { name: '체코 코루나', nation: '체코' },
+    'TRY': { name: '튀르키예 리라', nation: '튀르키예' },
+    'MXN': { name: '멕시코 페소', nation: '멕시코' },
+    'PLN': { name: '폴란드 즈워티', nation: '폴란드' },
+    'AED': { name: 'UAE 디르함', nation: '아랍에미리트' },
+    'SGD': { name: '싱가포르 달러', nation: '싱가포르' },
+    'THB': { name: '태국 바트', nation: '태국' },
+    'MYR': { name: '말레이시아 링깃', nation: '말레이시아' },
+    'IDR': { name: '인도네시아 루피아', nation: '인도네시아' },
+    'VND': { name: '베트남 동', nation: '베트남' },
+    'PHP': { name: '필리핀 페소', nation: '필리핀' },
+    'RUB': { name: '러시아 루블', nation: '러시아' },
+    'ZAR': { name: '남아공 랜드', nation: '남아프리카공화국' },
+    'BRL': { name: '브라질 레알', nation: '브라질' },
+    'INR': { name: '인도 루피', nation: '인도' },
+    'SAR': { name: '사우디 리얄', nation: '사우디아라비아' },
+    'KWD': { name: '쿠웨이트 디나르', nation: '쿠웨이트' },
+    'BHD': { name: '바레인 디나르', nation: '바레인' },
+    'QAR': { name: '카타르 리얄', nation: '카타르' },
+    'EGP': { name: '이집트 파운드', nation: '이집트' },
+    'HUF': { name: '헝가리 포린트', nation: '헝가리' },
+    'DKK': { name: '덴마크 크로네', nation: '덴마크' },
+    'NOK': { name: '노르웨이 크로네', nation: '노르웨이' },
+    'ILS': { name: '이스라엘 셰켈', nation: '이스라엘' },
+    'JOD': { name: '요르단 디나르', nation: '요르단' },
+    'PKR': { name: '파키스탄 루피', nation: '파키스탄' },
+    'BDT': { name: '방글라데시 타카', nation: '방글라데시' },
+    'MNT': { name: '몽골 투그릭', nation: '몽골' },
+    'KZT': { name: '카자흐스탄 텡게', nation: '카자흐스탄' },
+    'BND': { name: '브루나이 달러', nation: '브루나이' }
 };
 
 // ===================================
@@ -1166,13 +1171,20 @@ const elements = {
     signOutBtn: document.getElementById('signOutBtn'),
     cameraLockedMsg: document.getElementById('cameraLockedMsg'),
 
-    // OCR Elements
+    // OCR & Receipt Elements
     cameraSection: document.getElementById('cameraSection'),
     cameraBtn: document.getElementById('cameraBtn'),
     cameraInput: document.getElementById('cameraInput'),
-    ocrResult: document.getElementById('ocrResult'),
-    ocrStatus: document.getElementById('ocrStatus'),
-    ocrPrices: document.getElementById('ocrPrices')
+
+    // Receipt Manager
+    receiptManagerBtn: document.getElementById('receiptManagerBtn'),
+    receiptModal: document.getElementById('receiptModal'),
+    receiptCameraBtn: document.getElementById('receiptCameraBtn'),
+    receiptInput: document.getElementById('receiptInput'),
+    receiptResult: document.getElementById('receiptResult'),
+    receiptStatus: document.getElementById('receiptStatus'),
+    receiptPreview: document.getElementById('receiptPreview'),
+    saveReceiptBtn: document.getElementById('saveReceiptBtn')
 };
 
 
@@ -1216,8 +1228,10 @@ function updateUIForLoginState() {
         const gBtn = document.querySelector('.g_id_signin');
         if (gBtn) gBtn.style.display = 'none';
 
-        // Show Profile
+        // Show Profile & Receipt Mgr
         elements.userProfile.style.display = 'flex';
+        if (elements.receiptManagerBtn) elements.receiptManagerBtn.style.display = 'block';
+
         elements.userAvatar.src = authState.user.picture;
         elements.userName.textContent = authState.user.given_name || authState.user.name;
 
@@ -1271,14 +1285,14 @@ async function fetchExchangeRates(forceUpdate = false) {
                     // Force blur before alert to remove button state on mobile
                     if (document.activeElement) document.activeElement.blur();
                     setTimeout(() => {
-                        alert('?꾩옱 ?곗씠?곌? 理쒖떊?낅땲??\n(?ㅼ쓬 ?낅뜲?댄듃: ' + formatTime(new Date(nextUpdate)) + ')');
+                        alert('현재 데이터가 최신입니다.\n(다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
                     }, 100); // Slight increase in delay to ensure blur renders
                 }
                 processData(data); // Use cached
                 state.lastUpdated = new Date(timestamp);
                 state.nextUpdate = nextUpdate; // Restore state
                 updateSourceInfo(source);
-                updateRateStatus(`理쒖떊 ?곗씠???좎? 以?(${source}): ${formatTime(state.lastUpdated)}`);
+                updateRateStatus(`최신 데이터 유지 중 (${source}): ${formatTime(state.lastUpdated)}`);
 
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
@@ -1300,7 +1314,7 @@ async function fetchExchangeRates(forceUpdate = false) {
                 processData(data);
                 state.lastUpdated = new Date(timestamp);
                 updateSourceInfo(source);
-                updateRateStatus(`??λ맂 ?곗씠??(${source}): ${formatTime(state.lastUpdated)}`);
+                updateRateStatus(`저장된 데이터 (${source}): ${formatTime(state.lastUpdated)}`);
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
                     // Auto-select logic
@@ -1321,7 +1335,7 @@ async function fetchExchangeRates(forceUpdate = false) {
         }
     }
 
-    updateRateStatus('?섏쑉 ?뺣낫 ?곌껐 以?..');
+    updateRateStatus('환율 정보 연결 중...');
     let success = false;
     let fetchedData = null;
 
@@ -1374,7 +1388,7 @@ async function fetchExchangeRates(forceUpdate = false) {
                 fetchedData = data; // Store for caching
                 processData(data); // Changed from processBackupData
                 state.lastUpdated = new Date();
-                // updateRateStatus(`?낅뜲?댄듃 (Naver/Hana Bank): ${formatTime(state.lastUpdated)}`); // This will be handled by the common caching block
+                // updateRateStatus(`업데이트 (Naver/Hana Bank): ${formatTime(state.lastUpdated)}`); // This will be handled by the common caching block
                 success = true;
             }
         } catch (e) {
@@ -1385,7 +1399,7 @@ async function fetchExchangeRates(forceUpdate = false) {
     // 4. Fallback (Offline hardcoded)
     if (!success) {
         processData(FALLBACK_DATA); // Changed from processExchangeData
-        updateRateStatus('?ㅽ봽?쇱씤 紐⑤뱶 (湲곕낯媛??ъ슜)');
+        updateRateStatus('오프라인 모드 (기본값 사용)');
     } else if (fetchedData) {
         state.lastUpdated = new Date();
 
@@ -1404,7 +1418,7 @@ async function fetchExchangeRates(forceUpdate = false) {
         }
 
         updateSourceInfo(finalSource);
-        updateRateStatus(`?낅뜲?댄듃 (${finalSource}): ${formatTime(state.lastUpdated)}`);
+        updateRateStatus(`업데이트 (${finalSource}): ${formatTime(state.lastUpdated)}`);
 
         try {
             const cachePayload = {
@@ -1492,9 +1506,9 @@ function updateSourceInfo(sourceName) {
     const footer = document.getElementById('sourceInfo');
     if (footer) {
         if (sourceName.includes('Naver')) {
-            footer.innerHTML = '?섏쑉 ?뺣낫: ?섎굹???(Naver)';
+            footer.innerHTML = '환율 정보: 하나은행 (Naver)';
         } else {
-            footer.innerHTML = '?섏쑉 ?뺣낫: Global Standard API (ExchangeRate-API)';
+            footer.innerHTML = '환율 정보: Global Standard API (ExchangeRate-API)';
         }
     }
 }
@@ -1574,7 +1588,7 @@ function sortCurrencyList() {
 function renderCurrencyOptions(list) {
     elements.currencyOptionsList.innerHTML = '';
     if (list.length === 0) {
-        elements.currencyOptionsList.innerHTML = '<div class="no-results">寃??寃곌낵媛 ?놁뒿?덈떎</div>';
+        elements.currencyOptionsList.innerHTML = '<div class="no-results">검색 결과가 없습니다</div>';
         return;
     }
     list.forEach(item => {
@@ -1587,7 +1601,7 @@ function renderCurrencyOptions(list) {
                 <span class="option-name">${item.nationName}</span>
                 <span class="option-code">(${item.code})</span>
             </div>
-            ${item.code === state.selectedCurrency ? '<span style="color:var(--accent-primary)">??/span>' : ''}
+            ${item.code === state.selectedCurrency ? '<span style="color:var(--accent-primary)">✔</span>' : ''}
         `;
         option.addEventListener('click', () => selectCurrency(item.code));
         elements.currencyOptionsList.appendChild(option);
@@ -1734,24 +1748,24 @@ function updateBreakdown(data) {
     let html = '';
     if (data.localAmount > 0) {
         html = `
-            <div class="breakdown-item"><span>湲곕낯 湲덉븸</span><span>${symbol}${formatNumber(data.localAmount, 2)}</span></div>
+            <div class="breakdown-item"><span>기본 금액</span><span>${symbol}${formatNumber(data.localAmount, 2)}</span></div>
         `;
         if (data.serviceCharge > 0) {
-            let scLabel = '+ ?쒕퉬?ㅼ감吏';
+            let scLabel = '+ 서비스차지';
             if (state.serviceChargeType === 'percent') {
                 scLabel += ` (${elements.serviceCharge.value}%)`;
             } else if (state.serviceChargeType === 'fixed') {
-                scLabel += ` (?뺤븸)`;
+                scLabel += ` (정액)`;
             } else if (state.serviceChargeType === 'total') {
-                scLabel += ` (?⑹궛)`;
+                scLabel += ` (합산)`;
             }
             html += itemRow(scLabel, data.serviceCharge, symbol);
         }
-        if (data.taxRate > 0) html += itemRow(`+ ?멸툑 (${data.taxRate}%)`, data.withService * (data.taxRate / 100), symbol);
-        if (data.feeRate > 0) html += itemRow(`+ ?섏닔猷?(${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
+        if (data.taxRate > 0) html += itemRow(`+ 세금 (${data.taxRate}%)`, data.withService * (data.taxRate / 100), symbol);
+        if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
 
         html += `
-            <div class="breakdown-item"><span>?꾩? 珥앹븸</span><span>${symbol}${formatNumber(data.withFee, 2)}</span></div>
+            <div class="breakdown-item"><span>현지 총액</span><span>${symbol}${formatNumber(data.withFee, 2)}</span></div>
         `;
     }
     elements.resultBreakdown.innerHTML = html;
@@ -1762,14 +1776,14 @@ function itemRow(label, value, symbol) {
 }
 
 function getCountryFromCode(currencyCode) {
-    const map = { 'USD': '誘멸뎅', 'KRW': '?쒓뎅', 'EUR': '?좊읇', 'JPY': '?쇰낯', 'CNY': '以묎뎅' };
+    const map = { 'USD': '미국', 'KRW': '한국', 'EUR': '유럽', 'JPY': '일본', 'CNY': '중국' };
     return map[currencyCode] || currencyCode;
 }
 
 function getCurrencySymbol(code) {
     const symbols = {
-        'USD': '$', 'EUR': '??, 'JPY': '짜', 'CNY': '짜', 'GBP': '짙',
-        'KRW': '??, 'THB': '錫?, 'VND': '??, 'PHP': '??, 'INR': '??
+        'USD': '$', 'EUR': '€', 'JPY': '¥', 'CNY': '¥', 'GBP': '£',
+        'KRW': '₩', 'THB': '฿', 'VND': '₫', 'PHP': '₱', 'INR': '₹'
     };
     return symbols[code] || code;
 }
@@ -1852,7 +1866,7 @@ function initEventListeners() {
 
             // If input exists and is less than base amount, warn user
             if (inputVal > 0 && inputVal < localAmount) {
-                alert('?⑹궛 湲덉븸? 湲곕낯 湲덉븸蹂대떎 而ㅼ빞 ?⑸땲??\n(?곸쓣 ?ы븿??珥앹븸???낅젰?댁＜?몄슂)');
+                alert('합산 금액은 기본 금액보다 커야 합니다.\n(팁을 포함한 총액을 입력해주세요)');
                 setTimeout(() => {
                     elements.serviceCharge.focus();
                 }, 10);
@@ -2023,23 +2037,23 @@ function detectLocation(interactive = false) {
         if (found) {
             selectCurrency(found.code);
             if (interactive) {
-                alert(`?뙇 ??꾩〈: ${timezone}\n?뮥 ?뷀룓: ${found.code} ?좏깮??);
+                alert(`🌍 타임존: ${timezone}\n💰 화폐: ${found.code} 선택됨`);
             }
         } else if (state.exchangeRates[targetCode]) {
             selectCurrency(targetCode);
             if (interactive) {
-                alert(`?뙇 ??꾩〈: ${timezone}\n?뮥 ?뷀룓: ${targetCode} ?좏깮??);
+                alert(`🌍 타임존: ${timezone}\n💰 화폐: ${targetCode} 선택됨`);
             }
         } else {
             if (interactive) {
-                alert(`?뙇 ??꾩〈: ${timezone}\n?좑툘 ?대떦 ?뷀룓 ?뺣낫 ?놁쓬 (湲곕낯: USD)`);
+                alert(`🌍 타임존: ${timezone}\n⚠️ 해당 화폐 정보 없음 (기본: USD)`);
             }
         }
 
-        console.log(`Timezone detected: ${timezone} ??${targetCode}`);
+        console.log(`Timezone detected: ${timezone} → ${targetCode}`);
     } catch (e) {
         console.error('Timezone detection failed:', e);
-        if (interactive) alert('??꾩〈 媛먯? ?ㅽ뙣');
+        if (interactive) alert('타임존 감지 실패');
     }
 }
 
@@ -2049,7 +2063,7 @@ function init() {
     // Load saved options first (restores selectedCurrency)
     loadOptions();
 
-    updateRateStatus('?섏쑉 ?뺣낫 濡쒕뵫 以?..');
+    updateRateStatus('환율 정보 로딩 중...');
 
     // Timezone-based detection (synchronous, no permission needed)
     detectLocation(false);
@@ -2160,7 +2174,7 @@ async function initOCRWorker() {
             if (m.status === 'recognizing text') {
                 const progress = Math.round(m.progress * 100);
                 if (elements.ocrStatus) {
-                    elements.ocrStatus.textContent = `?몄떇 以?.. ${progress}%`;
+                    elements.ocrStatus.textContent = `인식 중... ${progress}%`;
                 }
             }
         }
@@ -2174,10 +2188,10 @@ function extractPrices(text) {
     const prices = [];
 
     // Currency symbol patterns (before or after number)
-    // 짜 (U+00A5), 占?(U+FFE5), ?? ?? ??for Asian currencies
+    // ¥ (U+00A5), ￥ (U+FFE5), 元, 円, ₩ for Asian currencies
     const patterns = [
-        /[$??Ｂο엠?⒱궧錫욋궫?껃냶]\s*([\d,\.]+)/g,                    // 짜120.00, $12.50
-        /([\d,\.]+)\s*[$??Ｂο엠?⒱궧錫욋궫?껃냶]/g,                    // 120.00짜, 12.50$
+        /[$€£¥￥₩₹฿₽元円]\s*([\d,\.]+)/g,                    // ¥120.00, $12.50
+        /([\d,\.]+)\s*[$€£¥￥₩₹฿₽元円]/g,                    // 120.00¥, 12.50$
         /(\d+(?:[,.]\d{1,2})?)/g                             // Plain numbers: 120, 12.50
     ];
 
@@ -2188,7 +2202,7 @@ function extractPrices(text) {
         while ((match = pattern.exec(text)) !== null) {
             // Extract the numeric part
             let numStr = match[1] || match[0];
-            numStr = numStr.replace(/[$??Ｂ?s]/g, '').replace(/,/g, '');
+            numStr = numStr.replace(/[$€£¥\s]/g, '').replace(/,/g, '');
 
             const num = parseFloat(numStr);
             if (!isNaN(num) && num > 0 && num < 1000000 && !seen.has(num)) {
@@ -2306,17 +2320,141 @@ function preprocessImage(imageFile) {
     });
 }
 
+// ===================================
+// Receipt Modal Logic
+// ===================================
+
+function openReceiptModal() {
+    if (elements.receiptModal) elements.receiptModal.style.display = 'flex';
+    resetReceiptModal();
+}
+
+function closeReceiptModal() {
+    if (elements.receiptModal) elements.receiptModal.style.display = 'none';
+}
+
+function resetReceiptModal() {
+    if (elements.receiptResult) elements.receiptResult.style.display = 'none';
+    if (elements.saveReceiptBtn) {
+        elements.saveReceiptBtn.style.display = 'none';
+        elements.saveReceiptBtn.onclick = null;
+        elements.saveReceiptBtn.disabled = false;
+        elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
+    }
+    if (elements.receiptStatus) elements.receiptStatus.textContent = "영수증을 촬영하거나 업로드하세요.";
+    if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
+}
+
+// ===================================
+// AI Logic (Dual Mode)
+// ===================================
+
+// Mode 1: Fast Price Tag Scan (Main Screen)
+async function scanPriceTag(file) {
+    if (!authState.isLoggedIn) {
+        alert("로그인이 필요한 기능입니다.");
+        return;
+    }
+
+    const originalText = elements.cameraBtn.innerHTML;
+    elements.cameraBtn.innerHTML = '<span>⏳ 분석 중...</span>';
+    elements.cameraBtn.disabled = true;
+
+    try {
+        const base64Image = await preprocessImage(file);
+
+        // Call Gemini with 'price_tag' mode
+        const result = await callGeminiOCR(base64Image, 'price_tag');
+
+        if (result.success && result.data) {
+            const data = result.data;
+
+            // 1. Auto-set Currency
+            if (data.currency && data.currency !== state.selectedCurrency) {
+                const mapped = state.currencyList.find(c => c.code === data.currency);
+                if (mapped) selectCurrency(data.currency);
+            }
+
+            // 2. Auto-set Amount
+            if (data.total) {
+                elements.localAmount.value = data.total;
+                calculate();
+                // Visual Feedback
+                elements.localAmount.style.backgroundColor = '#e8f5e9'; // Light Green
+                setTimeout(() => elements.localAmount.style.backgroundColor = '', 500);
+            } else {
+                alert("가격 정보를 찾을 수 없습니다.");
+            }
+        } else {
+            throw new Error(result.error || "분석 실패");
+        }
+    } catch (e) {
+        alert("오류: " + e.message);
+    } finally {
+        elements.cameraBtn.innerHTML = originalText;
+        elements.cameraBtn.disabled = false;
+        elements.cameraInput.value = '';
+    }
+}
+
+// Mode 2: Detailed Receipt Scan (Modal)
+async function scanReceipt(file) {
+    if (elements.receiptResult) elements.receiptResult.style.display = 'block';
+    if (elements.receiptStatus) elements.receiptStatus.textContent = "AI가 영수증을 상세 분석 중입니다... (약 5-7초)";
+    if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
+    if (elements.saveReceiptBtn) elements.saveReceiptBtn.style.display = 'none';
+
+    try {
+        const base64Image = await preprocessImage(file);
+        const result = await callGeminiOCR(base64Image, 'receipt');
+
+        if (result.success && result.data) {
+            const data = result.data;
+            if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
+
+            // Display Preview
+            let html = `<strong>📅 날짜:</strong> ${data.date || '미상'}<br>`;
+            html += `<strong>🏪 상호:</strong> ${data.store || '미상'}<br>`;
+            html += `<strong>💰 총액:</strong> ${data.total} ${data.currency}<br>`;
+            html += `<strong>💳 결제:</strong> ${data.paymentMethod || '미상'}<br>`;
+            html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
+
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    html += `- ${item.name}: ${item.price}<br>`;
+                });
+            } else {
+                html += `(세부 품목 없음)<br>`;
+            }
+
+            if (elements.receiptPreview) elements.receiptPreview.innerHTML = html;
+            if (elements.saveReceiptBtn) {
+                elements.saveReceiptBtn.style.display = 'block';
+                // Bind Save Action
+                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet(data);
+            }
+
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (e) {
+        if (elements.receiptStatus) elements.receiptStatus.textContent = "❌ 오류: " + e.message;
+    } finally {
+        if (elements.receiptInput) elements.receiptInput.value = '';
+    }
+}
+
 // Image Processing & Gemini OCR
 async function processImage(file) {
     if (!file) return;
 
     if (!authState.isLoggedIn) {
-        alert("濡쒓렇?몄씠 ?꾩슂??湲곕뒫?낅땲??");
+        alert("로그인이 필요한 기능입니다.");
         return;
     }
 
     elements.ocrResult.style.display = 'block';
-    elements.ocrStatus.textContent = "?대?吏 ?꾩쿂由?以?..";
+    elements.ocrStatus.textContent = "이미지 전처리 중...";
     elements.ocrPrices.innerHTML = '';
 
     try {
@@ -2324,11 +2462,11 @@ async function processImage(file) {
         const base64Image = await preprocessImage(file);
 
         // 2. Send to Gemini Backend
-        elements.ocrStatus.textContent = "AI媛 ?곸닔利?遺꾩꽍 以?.. (??3-5珥?";
+        elements.ocrStatus.textContent = "AI가 영수증 분석 중... (약 3-5초)";
         const result = await callGeminiOCR(base64Image);
 
         if (result.success && result.data) {
-            elements.ocrStatus.textContent = "??遺꾩꽍 ?꾨즺";
+            elements.ocrStatus.textContent = "✅ 분석 완료";
             console.log("Gemini Data:", result.data);
 
             // 3. Update UI
@@ -2337,12 +2475,12 @@ async function processImage(file) {
             // 4. Offer to Save
             showSaveButton(result.data);
         } else {
-            throw new Error(result.error || "?묐떟 ?ㅻ쪟");
+            throw new Error(result.error || "응답 오류");
         }
 
     } catch (error) {
         console.error('OCR Error:', error);
-        elements.ocrStatus.textContent = `???ㅻ쪟: ${error.message}`;
+        elements.ocrStatus.textContent = `❌ 오류: ${error.message}`;
     }
 }
 
@@ -2388,112 +2526,95 @@ async function preprocessImage(file) {
     });
 }
 
-async function callGeminiOCR(base64Image) {
-    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'cors', // Text/plain is standard for GAS simple requests but we try standard JSON
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8', // GAS often requires text/plain for CORS
-        },
-        body: JSON.stringify({
-            action: 'ocr',
-            image: base64Image,
-            mimeType: 'image/jpeg'
-        })
-    });
-    return await response.json();
-}
+async function callGeminiOCR(base64Image, mode) {
+    try {
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                action: 'ocr',
+                image: base64Image,
+                mode: mode || 'price_tag', // Pass mode to backend
+                mimeType: 'image/jpeg'
+            })
+        });
 
-function applyOCRResult(data) {
-    // Auto-select currency if provided and different
-    if (data.currency && data.currency !== state.selectedCurrency) {
-        const mapped = state.currencyList.find(c => c.code === data.currency);
-        if (mapped) {
-            selectCurrency(data.currency);
-        }
-    }
-
-    // Set Amount
-    if (data.total) {
-        elements.localAmount.value = data.total;
-        calculate();
-    }
-
-    // Show Items
-    if (data.items && data.items.length > 0) {
-        const html = data.items.map(item =>
-            `<div class="price-chip" onclick="setInput(${item.price})">
-                ${item.name}: ${item.price}
-             </div>`
-        ).join('');
-        elements.ocrPrices.innerHTML = `<div style="margin-top:5px; font-size:0.85em;">媛먯?????ぉ:</div>${html}`;
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        return await response.json();
+    } catch (e) {
+        console.error(e);
+        throw new Error("네트워크 오류: " + e.message);
     }
 }
 
-function showSaveButton(receiptData) {
-    const btnId = 'saveToSheetBtn';
-    let btn = document.getElementById(btnId);
+async function saveReceiptToSheet(receiptData) {
+    const btn = elements.saveReceiptBtn;
+    if (!btn) return;
 
-    if (!btn) {
-        btn = document.createElement('button');
-        btn.id = btnId;
-        btn.className = 'confirm-btn'; // Style reuse
-        btn.style.marginTop = '10px';
-        btn.style.width = '100%';
-        btn.innerHTML = '?뮶 援ш? ?쒗듃?????;
-        elements.ocrResult.appendChild(btn);
-    }
+    btn.disabled = true;
+    btn.textContent = "저장 중...";
 
-    btn.onclick = async () => {
-        btn.disabled = true;
-        btn.textContent = '???以?..';
+    try {
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                action: 'save',
+                userEmail: authState.user.email,
+                receiptData: receiptData
+            })
+        });
 
-        try {
-            const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'save',
-                    userEmail: authState.user.email,
-                    receiptData: receiptData
-                })
-            });
-            const res = await response.json();
-            if (res.success) {
-                alert('????λ릺?덉뒿?덈떎!');
-                btn.style.display = 'none';
-            } else {
-                throw new Error(res.error);
-            }
-        } catch (e) {
-            alert('????ㅽ뙣: ' + e.message);
-            btn.disabled = false;
-            btn.textContent = '?뮶 援ш? ?쒗듃?????;
+        const res = await response.json();
+        if (res.success) {
+            alert("✅ 가계부에 저장되었습니다!");
+            closeReceiptModal();
+        } else {
+            throw new Error(res.error);
         }
-    };
+    } catch (e) {
+        alert("저장 실패: " + e.message);
+        btn.disabled = false;
+        btn.textContent = "💾 가계부에 저장";
+    }
 }
 
 function setInput(val) {
-    elements.localAmount.value = val;
-    calculate();
+    if (elements.localAmount) {
+        elements.localAmount.value = val;
+        calculate();
+    }
 }
 
 // Initialize OCR event listeners
 function initOCRListeners() {
-    if (!elements.cameraBtn || !elements.cameraInput) return;
+    // 1. Fast Price Tag Scan (Main Screen)
+    if (elements.cameraBtn && elements.cameraInput) {
+        elements.cameraBtn.addEventListener('click', () => {
+            elements.cameraInput.click();
+        });
+        elements.cameraInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) scanPriceTag(file);
+        });
+    }
 
-    elements.cameraBtn.addEventListener('click', () => {
-        elements.cameraInput.click();
-    });
+    // 2. Receipt Manager Modal
+    if (elements.receiptManagerBtn) {
+        elements.receiptManagerBtn.addEventListener('click', openReceiptModal);
+    }
 
-    elements.cameraInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            processImage(file);
-        }
-        // Reset input to allow same file selection
-        e.target.value = '';
-    });
+    if (elements.receiptCameraBtn && elements.receiptInput) {
+        elements.receiptCameraBtn.addEventListener('click', () => {
+            elements.receiptInput.click();
+        });
+        elements.receiptInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) scanReceipt(file);
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
