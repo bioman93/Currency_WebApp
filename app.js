@@ -1633,6 +1633,7 @@ async function scanPriceTag(file) {
             // 1. Auto-set Currency
             if (data.currency) {
                 let detectedCode = data.currency.trim().toUpperCase();
+                alert(`[DEBUG] AI Raw: ${data.currency} / Codes: ${detectedCode}`);
 
                 // Symbol to Code Mapping
                 const symbolMap = {
