@@ -2617,10 +2617,117 @@ function initOCRListeners() {
     }
 }
 
+
 document.addEventListener('DOMContentLoaded', () => {
     init();
     initOCRListeners();
 });
+
+// ==========================================
+// HOTFIX: Overwrite Functions for Stability
+// ==========================================
+
+// Mode 1: Fast Price Tag Scan (Main Screen) - Fixed Currency Logic
+async function scanPriceTag(file) {
+    if (!authState.isLoggedIn) {
+        alert("로그인이 필요한 기능입니다.");
+        return;
+    }
+
+    const originalText = elements.cameraBtn.innerHTML;
+    elements.cameraBtn.innerHTML = '<span>⏳ 분석 중...</span>';
+    elements.cameraBtn.disabled = true;
+
+    try {
+        const base64Image = await preprocessImage(file);
+
+        // Call Gemini with 'price_tag' mode
+        const result = await callGeminiOCR(base64Image, 'price_tag');
+
+        if (result.success && result.data) {
+            const data = result.data;
+
+            // 1. Auto-set Currency
+            if (data.currency) {
+                const detectedCode = data.currency.toUpperCase();
+                const mapped = state.currencyList.find(c => c.code === detectedCode);
+
+                if (mapped && detectedCode !== state.selectedCurrency) {
+                    console.log(`Currency switched: ${state.selectedCurrency} -> ${detectedCode}`);
+                    selectCurrency(detectedCode);
+                }
+            }
+
+            // 2. Auto-set Amount
+            if (data.total) {
+                setInput(data.total); // Use setInput for consistent UI updates
+
+                // Visual Feedback
+                elements.localAmount.style.backgroundColor = '#e8f5e9'; // Light Green
+                setTimeout(() => elements.localAmount.style.backgroundColor = '', 500);
+            } else {
+                alert("가격 정보를 찾을 수 없습니다.");
+            }
+        } else {
+            throw new Error(result.error || "분석 실패");
+        }
+    } catch (e) {
+        alert("오류: " + e.message);
+    } finally {
+        elements.cameraBtn.innerHTML = originalText;
+        elements.cameraBtn.disabled = false;
+        elements.cameraInput.value = '';
+    }
+}
+
+// setInput - Fixed Clear Button Visibility
+function setInput(val) {
+    if (elements.localAmount) {
+        elements.localAmount.value = val;
+        calculate();
+
+        // Manual toggle of clear button if function exists or manual check
+        const btn = document.querySelector(`.clear-btn[data-target="localAmount"]`);
+        if (btn) {
+            if (val && val.toString().length > 0) btn.classList.add('visible');
+            else btn.classList.remove('visible');
+        }
+    }
+}
+
+// initOCRListeners - Robust Event Binding
+function initOCRListeners() {
+    console.log("Initializing OCR Listeners (Overwritten)...");
+
+    // 1. Fast Price Tag Scan
+    if (elements.cameraBtn && elements.cameraInput) {
+        elements.cameraBtn.onclick = () => elements.cameraInput.click();
+        elements.cameraInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) scanPriceTag(file);
+        }
+    }
+
+    // 2. Receipt Manager Modal - Direct Binding
+    const receiptBtn = document.getElementById('receiptManagerBtn');
+    if (receiptBtn) {
+        receiptBtn.onclick = (e) => {
+            e.preventDefault();
+            console.log("Receipt Manager Clicked");
+            openReceiptModal();
+        };
+    } else {
+        console.warn("Receipt Manager Button not found during init!");
+    }
+
+    if (elements.receiptCameraBtn && elements.receiptInput) {
+        elements.receiptCameraBtn.onclick = () => elements.receiptInput.click();
+        elements.receiptInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) scanReceipt(file);
+        }
+    }
+}
 
 </script>
 </body>
