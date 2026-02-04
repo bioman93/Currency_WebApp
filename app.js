@@ -1405,7 +1405,8 @@ async function scanPriceTag(file) {
                 alert("가격 정보를 찾을 수 없습니다.");
             }
         } else {
-            throw new Error(result.error || "분석 실패");
+            console.error("OCR Failed:", result);
+            throw new Error(result.error + (result.details ? "\nDetails:\n" + result.details : ""));
         }
     } catch (e) {
         alert("오류: " + e.message);
