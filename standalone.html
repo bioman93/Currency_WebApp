@@ -1457,6 +1457,10 @@ async function fetchExchangeRates(forceUpdate = false) {
 
                 if (state.currencyList.length > 0) {
                     renderCurrencyOptions(state.currencyList);
+
+                    // Security: Ensure we are in source mode for auto-updates
+                    state.searchMode = 'source';
+
                     // Auto-select logic
                     if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
                         selectCurrency(state.lastDetectedCode);
