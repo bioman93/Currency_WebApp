@@ -158,6 +158,19 @@
                 <div class="result-breakdown" id="resultBreakdown">
                     <!-- Calculation breakdown will be inserted here -->
                 </div>
+
+                <!-- Target Currency Search (Separate UI) -->
+                <div id="targetSearchWrapper" class="currency-search-wrapper" style="display: none;">
+                    <div class="search-input-container">
+                        <input type="text" id="targetSearchInput" class="main-search-input" placeholder="내 화폐(국적) 검색..."
+                            autocomplete="off">
+                        <button id="targetCloseBtn" class="close-search-btn" aria-label="닫기">✕</button>
+                    </div>
+
+                    <div class="dropdown-list" id="targetOptionsList">
+                        <!-- Options populated by JS -->
+                    </div>
+                </div>
             </section>
 
             <!-- Options Section (Collapsible) -->

@@ -150,6 +150,11 @@ const elements = {
     resultAmount: document.getElementById('resultAmount'),
     resultSection: document.getElementById('resultSection'),
     resultBreakdown: document.getElementById('resultBreakdown'),
+    // Target Search UI
+    targetSearchWrapper: document.getElementById('targetSearchWrapper'),
+    targetSearchInput: document.getElementById('targetSearchInput'),
+    targetCloseBtn: document.getElementById('targetCloseBtn'),
+    targetOptionsList: document.getElementById('targetOptionsList'),
     refreshRateBtn: document.getElementById('refreshRateBtn'),
     rateUpdateTime: document.getElementById('rateUpdateTime'),
 
@@ -697,36 +702,101 @@ const EUROZONE_COUNTRIES = [
     'AT', 'BE', 'HR', 'CY', 'EE', 'FI', 'FR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PT', 'SK', 'SI', 'ES', 'AD', 'MC', 'SM', 'VA'
 ];
 
+function openSearch(mode = 'source') {
+    state.searchMode = mode;
+    state.isSearchOpen = true;
+
+    // UI Separation: Show correct wrapper
+    if (mode === 'target') {
+        elements.targetSearchWrapper.style.display = 'block';
+        elements.currencySearchWrapper.style.display = 'none'; // Ensure source closed
+
+        elements.targetSearchInput.value = '';
+        elements.targetSearchInput.focus();
+        renderCurrencyOptions(state.currencyList); // Renders to targetOptionsList
+    } else {
+        // Source Mode
+        elements.currencyDisplay.style.display = 'none';
+        elements.currencySearchWrapper.style.display = 'block';
+        elements.targetSearchWrapper.style.display = 'none'; // Ensure target closed
+
+        elements.currencySearchInput.value = '';
+        elements.currencySearchInput.focus();
+        renderCurrencyOptions(state.currencyList); // Renders to currencyOptionsList
+    }
+}
+
+function closeSearch() {
+    state.isSearchOpen = false;
+    elements.currencyDisplay.style.display = 'flex';
+    elements.currencySearchWrapper.style.display = 'none';
+    elements.targetSearchWrapper.style.display = 'none';
+}
+
+function filterCurrencyList(keyword) {
+    if (!keyword) {
+        renderCurrencyOptions(state.currencyList);
+        return;
+    }
+    const lower = keyword.toLowerCase();
+    const filtered = state.currencyList.filter(item =>
+        item.code.toLowerCase().includes(lower) ||
+        item.name.toLowerCase().includes(lower) ||
+        item.nationName.toLowerCase().includes(lower)
+    );
+    renderCurrencyOptions(filtered);
+}
+
+// Renders the list of currencies
+// Uses state.searchMode to decide WHICH list to populate
+function renderCurrencyOptions(list) {
+    const listContainer = (state.searchMode === 'target') ?
+        elements.targetOptionsList :
+        elements.currencyOptionsList;
+
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+    if (list.length === 0) {
+        listContainer.innerHTML = '<div class="no-results">검색 결과가 없습니다</div>';
+        return;
+    }
+
+    list.forEach(item => {
+        const option = document.createElement('div');
+        option.className = 'option-item';
+
+        let isSelected = false;
+        if (state.searchMode === 'target') {
+            isSelected = (item.code === state.targetCurrency);
+        } else {
+            isSelected = (item.code === state.selectedCurrency);
+        }
+
+        if (isSelected) option.classList.add('selected');
+
+        option.innerHTML = `
+            <div class="option-info">
+                <span class="option-name">${item.nationName}</span>
+                <span class="option-code">(${item.code})</span>
+            </div>
+            ${isSelected ? '<span style="color:var(--accent-primary)">✔</span>' : ''}
+        `;
+        option.addEventListener('click', () => selectCurrency(item.code));
+        listContainer.appendChild(option);
+    });
+}
+
 function selectCurrency(code) {
     if (!state.exchangeRates[code]) return;
 
     if (state.searchMode === 'target') {
         // Mode: Setting Target (Home) Currency
-        if (code === 'KRW') {
-            state.targetCurrency = 'KRW';
-            // If Target is KRW, Input should be Foreign.
-            // But we don't automatically change Input here unless it was KRW.
-        } else {
-            state.targetCurrency = code;
-            state.homeCurrency = code; // Remember preference
+        // STRICT SEPARATION: Only change Target & Home. Never Source.
+        state.targetCurrency = code;
+        state.homeCurrency = code; // Remember preference
 
-            // If Input was previously KRW, it's fine (KRW -> Target).
-            // If Input was Foreign, we might want to set Input to KRW?
-            // "I am American. I see result in USD. I click USD."
-            // "I change to JPY." -> Now KRW -> JPY? Or USD -> JPY?
-            // Usually manual override means "Show me this currency".
-            // Let's assume Input becomes KRW if it wasn't.
-            if (state.selectedCurrency !== 'KRW') {
-                // state.selectedCurrency = 'KRW'; 
-                // Actually, let's keep input as is, UNLESS input==code (KRW->KRW prevent)
-            }
-        }
-
-        // Prevent Same -> Same
-        if (state.selectedCurrency === state.targetCurrency) {
-            if (state.targetCurrency === 'KRW') state.selectedCurrency = 'USD'; // Default fallback
-            else state.selectedCurrency = 'KRW';
-        }
+        // No checks on source logic.
 
     } else {
         // Mode: Setting Source (Input) Currency
@@ -742,38 +812,32 @@ function selectCurrency(code) {
         }
     }
 
-    // Reset UI & Calc
-    elements.localAmount.value = '';
-    toggleClearBtn('localAmount', '');
+    // Reset UI Logic
+    if (state.searchMode === 'source') {
+        // If Source changed, reset input amount
+        elements.localAmount.value = '';
+        toggleClearBtn('localAmount', '');
 
-    // Reset Service Charge if Fixed/Total (Currency dependent)
-    if (state.serviceChargeType !== 'percent') {
-        elements.serviceCharge.value = '';
-        toggleClearBtn('serviceCharge', '');
+        // Reset Service Charge
+        if (state.serviceChargeType !== 'percent') {
+            elements.serviceCharge.value = '';
+            toggleClearBtn('serviceCharge', '');
+        }
     }
 
-    const data = state.exchangeRates[code];
-
-    elements.selectedCurrencyText.textContent = `${data.nationName} (${data.code})`;
-
-    let rateText = formatNumber(data.rate, 2);
-    if (['JPY', 'VND', 'IDR'].includes(code)) {
-        elements.currentRateDisplay.textContent = `${data.displayRate} (100${code})`;
-    } else {
-        elements.currentRateDisplay.textContent = rateText;
-    }
-
-    elements.currencySymbol.textContent = getCurrencySymbol(code);
-
-    // Update unit for Fixed/Total Tip if active
-    if (state.serviceChargeType === 'fixed' || state.serviceChargeType === 'total') {
-        elements.serviceChargeUnit.textContent = getCurrencySymbol(code);
-    }
-
-    saveOptions(); // Persist selection
     closeSearch();
+
+    // Update Display Text (Source only)
+    if (state.searchMode === 'source') {
+        const rate = state.exchangeRates[state.selectedCurrency];
+        elements.selectedCurrencyText.textContent = `${rate.nationName} (${rate.code})`;
+        elements.currencySymbol.textContent = getCurrencySymbol(state.selectedCurrency);
+    }
+
     calculate();
 }
+
+
 
 // ===================================
 // UI Interaction Logic
@@ -1015,11 +1079,31 @@ function initEventListeners() {
     });
     elements.currencySearchInput.addEventListener('input', (e) => filterCurrencyList(e.target.value));
 
-    document.addEventListener('click', (e) => {
-        if (state.isSearchOpen &&
-            !elements.currencySearchWrapper.contains(e.target) &&
-            !elements.currencyDisplay.contains(e.target)) {
+    // Target Search Listeners
+    if (elements.targetCloseBtn) {
+        elements.targetCloseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             closeSearch();
+        });
+    }
+    if (elements.targetSearchInput) {
+        elements.targetSearchInput.addEventListener('input', (e) => filterCurrencyList(e.target.value));
+    }
+
+    document.addEventListener('click', (e) => {
+        // If search is open, check which one and close if active out
+        if (!state.isSearchOpen) return;
+
+        if (state.searchMode === 'target') {
+            if (!elements.targetSearchWrapper.contains(e.target) &&
+                !elements.resultSection.contains(e.target)) {
+                closeSearch();
+            }
+        } else {
+            if (!elements.currencySearchWrapper.contains(e.target) &&
+                !elements.currencyDisplay.contains(e.target)) {
+                closeSearch();
+            }
         }
     });
 
