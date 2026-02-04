@@ -733,7 +733,8 @@ function selectCurrency(code) {
         // Auto-Swap Logic (Foreigner Mode)
         if (code === 'KRW') {
             state.targetCurrency = state.homeCurrency || 'USD';
-            if (state.targetCurrency === 'KRW') state.targetCurrency = 'USD';
+            // User Feedback: Don't force USD. If homeCurrency is KRW (or unassigned), let it be.
+            // if (state.targetCurrency === 'KRW') state.targetCurrency = 'USD';
         } else {
             state.targetCurrency = 'KRW';
         }
@@ -990,9 +991,10 @@ function initEventListeners() {
     elements.currencyDisplay.addEventListener('click', () => openSearch('source'));
 
     // Result Label Click -> Search 'target'
-    if (elements.resultLabel) {
-        elements.resultLabel.addEventListener('click', () => openSearch('target'));
-    }
+    const openTargetSearch = () => openSearch('target');
+    if (elements.resultLabel) elements.resultLabel.addEventListener('click', openTargetSearch);
+    if (elements.resultSymbol) elements.resultSymbol.addEventListener('click', openTargetSearch);
+    if (elements.resultValue) elements.resultValue.addEventListener('click', openTargetSearch);
 
     elements.closeSearchBtn.addEventListener('click', (e) => {
         e.stopPropagation();

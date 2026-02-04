@@ -760,3 +760,12 @@ body {
     color: var(--accent-primary);
 }
 
+
+/* Enhanced Touch Target for Result Section */
+.result-amount {
+    cursor: pointer;
+}
+.result-label {
+    padding: 10px 0; /* Increase touch area */
+}
+
