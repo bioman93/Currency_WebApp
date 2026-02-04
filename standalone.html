@@ -764,6 +764,7 @@ body {
     flex: 1;
     overflow-y: auto;
 }
+
 /* Result Label Clickable (Foreigner Mode) */
 #resultLabel {
     cursor: pointer;
@@ -782,8 +783,10 @@ body {
 .result-amount {
     cursor: pointer;
 }
+
 .result-label {
-    padding: 10px 0; /* Increase touch area */
+    padding: 10px 0;
+    /* Increase touch area */
 }
 
 
@@ -793,37 +796,46 @@ body {
     padding: 10px 0;
     transition: opacity 0.2s;
 }
-#resultAmount:active, #resultLabel:active {
+
+#resultAmount:active,
+#resultLabel:active {
     opacity: 0.7;
 }
 
 
-/* Target Search UI Overlay */
+/* Target Search UI Overlay (Embedded) */
 #resultSection {
     position: relative;
-    overflow: hidden; /* Ensure list stays inside rounded corners */
+    overflow: hidden;
+    /* Ensure list stays inside rounded corners */
 }
 
-#targetSearchWrapper {
+.target-search-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%; /* Cover entire result section */
+    height: 100%;
+    /* Cover entire result section */
     z-index: 20;
-    background: var(--bg-card); /* Same as card bg */
-    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    /* Match card background */
     display: none;
     flex-direction: column;
+    /* No border or shadow to feel 'inside' the card */
 }
 
-#targetSearchWrapper .dropdown-list {
+.target-search-overlay .dropdown-list {
     flex: 1;
     overflow-y: auto;
-    background: var(--bg-card);
+    background: transparent;
+    /* Seamless list */
 }
 
-
+.target-search-overlay .search-input-container {
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--spacing-xs);
+}
 </style>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
@@ -970,9 +982,9 @@ body {
                 </div>
 
                 <!-- Target Currency Search (Separate UI) -->
-                <div id="targetSearchWrapper" class="currency-search-wrapper" style="display: none;">
+                <div id="targetSearchWrapper" class="target-search-overlay" style="display: none;">
                     <div class="search-input-container">
-                        <input type="text" id="targetSearchInput" class="main-search-input" placeholder="내 화폐(국적) 검색..."
+                        <input type="text" id="targetSearchInput" class="main-search-input" placeholder="내 화폐(국적) 검색"
                             autocomplete="off">
                         <button id="targetCloseBtn" class="close-search-btn" aria-label="닫기">✕</button>
                     </div>
