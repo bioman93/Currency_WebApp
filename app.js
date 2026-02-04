@@ -147,6 +147,8 @@ const elements = {
     resultValue: document.getElementById('resultValue'),
     resultLabel: document.getElementById('resultLabel'),
     resultSymbol: document.getElementById('resultSymbol'),
+    resultAmount: document.getElementById('resultAmount'),
+    resultSection: document.getElementById('resultSection'),
     resultBreakdown: document.getElementById('resultBreakdown'),
     refreshRateBtn: document.getElementById('refreshRateBtn'),
     rateUpdateTime: document.getElementById('rateUpdateTime'),
@@ -991,10 +993,21 @@ function initEventListeners() {
     elements.currencyDisplay.addEventListener('click', () => openSearch('source'));
 
     // Result Label Click -> Search 'target'
-    const openTargetSearch = () => openSearch('target');
+    // Result Label Click -> Search 'target'
+    const openTargetSearch = (e) => {
+        // Prevent triggering if clicking something interactive inside (if any)
+        // But here everything is just text/display.
+        e.stopPropagation();
+        openSearch('target');
+    };
+
     if (elements.resultLabel) elements.resultLabel.addEventListener('click', openTargetSearch);
-    if (elements.resultSymbol) elements.resultSymbol.addEventListener('click', openTargetSearch);
-    if (elements.resultValue) elements.resultValue.addEventListener('click', openTargetSearch);
+    // Attach to the container (resultAmount) instead of individual spans for better touch area
+    if (elements.resultAmount) elements.resultAmount.addEventListener('click', openTargetSearch);
+
+    // Also attach to the whole section just in case? 
+    // Maybe too aggressive, users might click by accident. Result Amount and Label is enough.
+    // Let's stick to Amount and Label.
 
     elements.closeSearchBtn.addEventListener('click', (e) => {
         e.stopPropagation();

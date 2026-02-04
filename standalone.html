@@ -787,6 +787,17 @@ body {
 }
 
 
+/* Feedack for Result Touch */
+#resultAmount {
+    cursor: pointer;
+    padding: 10px 0;
+    transition: opacity 0.2s;
+}
+#resultAmount:active, #resultLabel:active {
+    opacity: 0.7;
+}
+
+
 </style>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
@@ -922,9 +933,9 @@ body {
             </section>
 
             <!-- Result Section (Placed prominently after input) -->
-            <section class="result-section">
+            <section class="result-section" id="resultSection">
                 <div class="result-label" id="resultLabel">대한민국 원화 (KRW)</div>
-                <div class="result-amount">
+                <div class="result-amount" id="resultAmount">
                     <span class="result-symbol" id="resultSymbol">₩</span>
                     <span class="result-value" id="resultValue">0</span>
                 </div>
@@ -1188,6 +1199,8 @@ const elements = {
     resultValue: document.getElementById('resultValue'),
     resultLabel: document.getElementById('resultLabel'),
     resultSymbol: document.getElementById('resultSymbol'),
+    resultAmount: document.getElementById('resultAmount'),
+    resultSection: document.getElementById('resultSection'),
     resultBreakdown: document.getElementById('resultBreakdown'),
     refreshRateBtn: document.getElementById('refreshRateBtn'),
     rateUpdateTime: document.getElementById('rateUpdateTime'),
@@ -2032,10 +2045,21 @@ function initEventListeners() {
     elements.currencyDisplay.addEventListener('click', () => openSearch('source'));
 
     // Result Label Click -> Search 'target'
-    const openTargetSearch = () => openSearch('target');
+    // Result Label Click -> Search 'target'
+    const openTargetSearch = (e) => {
+        // Prevent triggering if clicking something interactive inside (if any)
+        // But here everything is just text/display.
+        e.stopPropagation();
+        openSearch('target');
+    };
+
     if (elements.resultLabel) elements.resultLabel.addEventListener('click', openTargetSearch);
-    if (elements.resultSymbol) elements.resultSymbol.addEventListener('click', openTargetSearch);
-    if (elements.resultValue) elements.resultValue.addEventListener('click', openTargetSearch);
+    // Attach to the container (resultAmount) instead of individual spans for better touch area
+    if (elements.resultAmount) elements.resultAmount.addEventListener('click', openTargetSearch);
+
+    // Also attach to the whole section just in case? 
+    // Maybe too aggressive, users might click by accident. Result Amount and Label is enough.
+    // Let's stick to Amount and Label.
 
     elements.closeSearchBtn.addEventListener('click', (e) => {
         e.stopPropagation();
