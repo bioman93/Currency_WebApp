@@ -53,6 +53,7 @@ const FALLBACK_DATA = [
 ];
 
 const CURRENCY_NAMES = {
+    'KRW': { name: '대한민국 원', nation: '한국' },
     'USD': { name: '미국 달러', nation: '미국' },
     'EUR': { name: '유럽 유로', nation: '유럽연합' },
     'JPY': { name: '일본 엔', nation: '일본' },
@@ -106,6 +107,7 @@ const state = {
     currencyList: [],
     lastUpdated: null,
     selectedCurrency: 'USD',
+    targetCurrency: 'KRW', // Default Target
     serviceChargeType: 'percent',
     isOptionsOpen: false,
     isOptionsOpen: false,
@@ -142,6 +144,8 @@ const elements = {
     taxRate: document.getElementById('taxRate'),
     feeRate: document.getElementById('feeRate'),
     resultValue: document.getElementById('resultValue'),
+    resultLabel: document.getElementById('resultLabel'),
+    resultSymbol: document.getElementById('resultSymbol'),
     resultBreakdown: document.getElementById('resultBreakdown'),
     refreshRateBtn: document.getElementById('refreshRateBtn'),
     rateUpdateTime: document.getElementById('rateUpdateTime'),
@@ -243,6 +247,70 @@ function signOut() {
     authState.credential = null;
     google.accounts.id.disableAutoSelect();
     updateUIForLoginState();
+    updateUIForLoginState();
+}
+
+function detectUserNationality() {
+    // 1. Google Locale (if detected during auth - simplistic assumption)
+    if (authState.user && authState.user.locale) {
+        // Google locales are like 'ko', 'en', 'en-US'
+        const locale = authState.user.locale;
+        mapLocaleToCurrency(locale);
+        return;
+    }
+
+    // 2. Browser Locale
+    const browserLocale = navigator.language || navigator.userLanguage;
+    mapLocaleToCurrency(browserLocale);
+}
+
+function mapLocaleToCurrency(locale) {
+    if (!locale) return;
+    const code = locale.split('-')[0].toLowerCase();
+    const region = locale.split('-')[1] ? locale.split('-')[1].toUpperCase() : null;
+
+    let target = 'KRW'; // Default fallback
+
+    // Simple Mapping
+    if (code === 'en') {
+        if (region === 'GB') target = 'GBP'; // UK
+        else if (region === 'AU') target = 'AUD';
+        else if (region === 'CA') target = 'CAD';
+        else target = 'USD'; // Default US
+    }
+    else if (code === 'ja') target = 'JPY';
+    else if (code === 'zh') target = 'CNY';
+    else if (code === 'ko') target = 'KRW';
+    else if (code === 'fr') target = 'EUR';
+    else if (code === 'de') target = 'EUR';
+    else if (code === 'it') target = 'EUR';
+    else if (code === 'es') target = 'EUR';
+    else if (code === 'ru') target = 'RUB';
+    else if (code === 'th') target = 'THB';
+    else if (code === 'vi') target = 'VND';
+
+    // Verification
+    // We can only set it if it exists in our data
+    // But data might not be loaded yet. We set a 'pending' detection
+    // which fetchExchangeRates will check.
+    state.lastDetectedCode = target; // Reuse this variable
+
+    // But since we want "Target" currency not "Source" currency for this feature
+    // Wait, the user asked for "Convert KRW to Their Currency".
+    // So if I am American, I want Input=KRW, Target=USD.
+    // If I am Korean, I want Input=USD, Target=KRW.
+
+    // Logic:
+    // If detected is KRW -> Source=USD (Source default), Target=KRW (Target default).
+    // If detected is USD -> Source=KRW, Target=USD.
+
+    if (target === 'KRW') {
+        state.targetCurrency = 'KRW';
+    } else {
+        state.targetCurrency = target;
+        state.selectedCurrency = 'KRW'; // Set input to KRW
+    }
+    state.homeCurrency = target; // Remember home currency
 }
 
 // ===================================
@@ -464,7 +532,10 @@ function processBackupData(data) {
         }
     });
 
-    const majors = ['USD', 'EUR', 'JPY', 'CNY', 'GBP', 'VND', 'IDR'];
+    // Explicitly Add KRW
+    addKrwToState();
+
+    const majors = ['USD', 'EUR', 'JPY', 'CNY', 'GBP', 'VND', 'IDR', 'KRW'];
     state.currencyList.sort((a, b) => {
         const idxA = majors.indexOf(a.code);
         const idxB = majors.indexOf(b.code);
@@ -482,6 +553,19 @@ function processData(data) {
     } else if (data.rates || (data.result === 'success')) {
         processGlobalData(data);
     }
+}
+
+function addKrwToState() {
+    const krwObj = {
+        code: 'KRW',
+        name: '대한민국 원',
+        nationName: '한국',
+        rate: 1.0,
+        displayRate: '1.00'
+    };
+    state.exchangeRates['KRW'] = krwObj;
+    // Check if distinct to avoid dupes (though logic clears list first)
+    state.currencyList.push(krwObj);
 }
 
 function updateSourceInfo(sourceName) {
@@ -518,6 +602,10 @@ function processGlobalData(data) {
             state.currencyList.push(currencyObj);
         }
     });
+
+    // Explicitly Add KRW
+    addKrwToState();
+
     sortCurrencyList();
 }
 
@@ -552,6 +640,10 @@ function processNaverData(rawData) {
         state.currencyList.push(currencyObj);
         processedCodes.add(code);
     });
+
+    // Explicitly Add KRW
+    addKrwToState();
+
     sortCurrencyList();
 }
 
@@ -597,6 +689,17 @@ const EUROZONE_COUNTRIES = [
 function selectCurrency(code) {
     if (!state.exchangeRates[code]) return;
     state.selectedCurrency = code;
+
+    // Auto-Swap Logic (Foreigner Mode)
+    if (code === 'KRW') {
+        // If Input is KRW, Target should be Home Currency (or USD)
+        state.targetCurrency = state.homeCurrency || 'USD';
+        // Prevent KRW->KRW
+        if (state.targetCurrency === 'KRW') state.targetCurrency = 'USD';
+    } else {
+        // If Input is Foreign, Target is KRW
+        state.targetCurrency = 'KRW';
+    }
 
     // Reset Local Amount
     elements.localAmount.value = '';
@@ -697,7 +800,13 @@ function calculate() {
     const feeRate = parseFloat(elements.feeRate.value.replace(/,/g, '')) || 0;
 
     if (!state.exchangeRates[state.selectedCurrency]) return;
-    const exchangeRate = state.exchangeRates[state.selectedCurrency].rate;
+    const sourceRate = state.exchangeRates[state.selectedCurrency].rate;
+
+    // Safety check for target currency (default to KRW if missing)
+    if (!state.exchangeRates[state.targetCurrency]) {
+        state.targetCurrency = 'KRW';
+    }
+    const targetRate = state.exchangeRates[state.targetCurrency]?.rate || 1;
 
     let serviceCharge = 0;
     if (state.serviceChargeType === 'percent') {
@@ -715,13 +824,29 @@ function calculate() {
     const withService = localAmount + serviceCharge;
     const withTax = withService * (1 + taxRate / 100);
     const withFee = withTax * (1 + feeRate / 100);
-    const resultKRW = withFee * exchangeRate;
 
-    elements.resultValue.textContent = formatNumber(Math.round(resultKRW));
+    // Core Calculation: Input * (Source / Target)
+    const resultValue = withFee * (sourceRate / targetRate);
+
+    // Dynamic Decimal Places
+    // If target is KRW/JPY/VND etc, 0 decimals. Else 2.
+    const targetCode = state.targetCurrency;
+    const decimals = ['KRW', 'JPY', 'VND', 'IDR'].includes(targetCode) ? 0 : 2;
+
+
+
+    elements.resultValue.textContent = formatNumber(resultValue, decimals);
+
+    // Update Result UI (Label & Symbol)
+    const targetSymbol = getCurrencySymbol(targetCode);
+    const targetName = state.exchangeRates[targetCode]?.name || targetCode;
+
+    if (elements.resultLabel) elements.resultLabel.textContent = `${targetName} (${targetCode})`;
+    if (elements.resultSymbol) elements.resultSymbol.textContent = targetSymbol;
 
     updateBreakdown({
         localAmount, serviceCharge, withService, taxRate,
-        withTax, feeRate, withFee, exchangeRate, resultKRW
+        withTax, feeRate, withFee, sourceRate, targetRate, resultValue, targetCode
     });
 }
 
@@ -746,8 +871,11 @@ function updateBreakdown(data) {
         if (data.taxRate > 0) html += itemRow(`+ 세금 (${data.taxRate}%)`, data.withService * (data.taxRate / 100), symbol);
         if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
 
+        if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
+
+        const targetSymbol = getCurrencySymbol(data.targetCode);
         html += `
-            <div class="breakdown-item"><span>현지 총액</span><span>${symbol}${formatNumber(data.withFee, 2)}</span></div>
+            <div class="breakdown-item"><span>변환 금액 (${data.targetCode})</span><span>${targetSymbol}${formatNumber(data.resultValue, 2)}</span></div>
         `;
     }
     elements.resultBreakdown.innerHTML = html;
@@ -803,6 +931,9 @@ function updateRateStatus(message) {
 // ===================================
 
 function initEventListeners() {
+    // Auto Detect on Init
+    detectUserNationality();
+
     elements.currencyDisplay.addEventListener('click', openSearch);
     elements.closeSearchBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -845,6 +976,8 @@ function initEventListeners() {
         if (state.serviceChargeType === 'total') {
             const localAmount = parseFloat(elements.localAmount.value.replace(/,/g, '')) || 0;
             const inputVal = parseFloat(elements.serviceCharge.value.replace(/,/g, '')) || 0;
+
+
 
             // If input exists and is less than base amount, warn user
             if (inputVal > 0 && inputVal < localAmount) {
