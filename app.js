@@ -1346,19 +1346,19 @@ async function scanPriceTag(file) {
 
     try {
         const base64Image = await preprocessImage(file);
-        
+
         // Call Gemini with 'price_tag' mode
         const result = await callGeminiOCR(base64Image, 'price_tag');
 
         if (result.success && result.data) {
             const data = result.data;
-            
+
             // 1. Auto-set Currency
             if (data.currency) {
                 let detectedCode = data.currency.trim().toUpperCase();
-                
+
                 // Debug log
-                console.log([DEBUG] AI Raw:  / Codes: );
+                console.log(`[DEBUG] AI Raw: ${data.currency} / Codes: ${detectedCode}`);
 
                 // Symbol to Code Mapping (All Keys UPPERCASE)
                 const symbolMap = {
@@ -1381,23 +1381,23 @@ async function scanPriceTag(file) {
 
                 // Find matching currency in our list
                 const mapped = state.currencyList.find(c => c.code === detectedCode);
-                
+
                 if (mapped && detectedCode !== state.selectedCurrency) {
-                    console.log(Currency switched:  -> );
+                    console.log(`Currency switched: ${state.selectedCurrency} -> ${detectedCode}`);
                     selectCurrency(detectedCode);
-                    
+
                     // Visual feedback
                     elements.selectedCurrencyText.style.color = '#38dec8';
                     setTimeout(() => elements.selectedCurrencyText.style.color = '', 800);
                 } else if (!mapped) {
-                    console.warn(Detected currency '' (mapped: ) not supported.);
+                    console.warn(`Detected currency '${data.currency}' (mapped: ${detectedCode}) not supported.`);
                 }
             }
 
             // 2. Auto-set Amount
             if (data.total) {
-                setInput(data.total); 
-                
+                setInput(data.total);
+
                 // Visual Feedback
                 elements.localAmount.style.backgroundColor = '#e8f5e9'; // Light Green
                 setTimeout(() => elements.localAmount.style.backgroundColor = '', 500);
@@ -1430,12 +1430,12 @@ async function scanReceipt(file) {
         if (result.success && result.data) {
             const data = result.data;
             if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
-            
+
             // Symbol Mapping for Receipt
             let displayCurrency = data.currency;
             if (displayCurrency) {
-                 const upCurrency = displayCurrency.toUpperCase();
-                 const symbolMap = {
+                const upCurrency = displayCurrency.toUpperCase();
+                const symbolMap = {
                     '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '元': 'CNY', 'CN¥': 'CNY',
                     '₩': 'KRW', '฿': 'THB', '₫': 'VND', '₱': 'PHP', 'RP': 'IDR', 'Rp': 'IDR', '₹': 'INR'
                 };
@@ -1443,22 +1443,22 @@ async function scanReceipt(file) {
                 else if (symbolMap[upCurrency]) displayCurrency = symbolMap[upCurrency];
             }
 
-            let html = <strong>📅 날짜:</strong> <br>;
-            html += <strong>🏪 상호:</strong> <br>;
-            html += <strong>💰 총액:</strong>  <br>;
-            html += <strong>💳 결제:</strong> <br>;
-            html += <hr><strong>📝 품목 (한국어 번역됨):</strong><br>;
-            
+            let html = `<strong>📅 날짜:</strong> ${data.date || '미상'}<br>`;
+            html += `<strong>🏪 상호:</strong> ${data.store || '미상'}<br>`;
+            html += `<strong>💰 총액:</strong> ${data.total} ${displayCurrency}<br>`;
+            html += `<strong>💳 결제:</strong> ${data.paymentMethod || '미상'}<br>`;
+            html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
+
             if (data.items && data.items.length > 0) {
                 data.items.forEach(item => {
-                    html += - : <br>;
+                    html += `- ${item.name}: ${item.price}<br>`;
                 });
             } else {
-                html += (세부 품목 없음)<br>;
+                html += `(세부 품목 없음)<br>`;
             }
 
             if (elements.receiptPreview) elements.receiptPreview.innerHTML = html;
-            
+
             if (elements.saveReceiptBtn) {
                 elements.saveReceiptBtn.style.display = 'block';
                 const newBtn = elements.saveReceiptBtn.cloneNode(true);
@@ -1466,7 +1466,7 @@ async function scanReceipt(file) {
                 elements.saveReceiptBtn = newBtn;
                 elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
                 elements.saveReceiptBtn.disabled = false;
-                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet({...data, currency: displayCurrency});
+                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet({ ...data, currency: displayCurrency });
             }
 
         } else {
@@ -1494,7 +1494,7 @@ async function callGeminiOCR(base64Image, mode) {
             })
         });
 
-        if (!response.ok) throw new Error(HTTP Error: );
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         return await response.json();
     } catch (e) {
         console.error(e);
@@ -1541,9 +1541,9 @@ function setInput(val) {
     if (elements.localAmount) {
         elements.localAmount.value = val;
         calculate();
-        
+
         // Manual toggle of clear button
-        const btn = document.querySelector(.clear-btn[data-target="localAmount"]);
+        const btn = document.querySelector(`.clear-btn[data-target="localAmount"]`);
         if (btn) {
             if (val && val.toString().length > 0) btn.classList.add('visible');
             else btn.classList.remove('visible');
@@ -1560,7 +1560,7 @@ function initOCRListeners() {
         elements.cameraBtn.onclick = () => elements.cameraInput.click();
         elements.cameraInput.onchange = (e) => {
             const file = e.target.files[0];
-            if(file) scanPriceTag(file);
+            if (file) scanPriceTag(file);
         }
     }
 
@@ -1575,12 +1575,12 @@ function initOCRListeners() {
     } else {
         console.warn("Receipt Manager Button not found during init!");
     }
-    
+
     if (elements.receiptCameraBtn && elements.receiptInput) {
         elements.receiptCameraBtn.onclick = () => elements.receiptInput.click();
         elements.receiptInput.onchange = (e) => {
             const file = e.target.files[0];
-            if(file) scanReceipt(file);
+            if (file) scanReceipt(file);
         }
     }
 }
