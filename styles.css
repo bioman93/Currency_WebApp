@@ -747,3 +747,16 @@ body {
     flex: 1;
     overflow-y: auto;
 }
+/* Result Label Clickable (Foreigner Mode) */
+#resultLabel {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+    transition: color 0.2s;
+}
+
+#resultLabel:hover {
+    color: var(--accent-primary);
+}
+

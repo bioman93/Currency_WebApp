@@ -108,6 +108,7 @@ const state = {
     lastUpdated: null,
     selectedCurrency: 'USD',
     targetCurrency: 'KRW', // Default Target
+    searchMode: 'source', // 'source' (Input) or 'target' (Output)
     serviceChargeType: 'percent',
     isOptionsOpen: false,
     isOptionsOpen: false,
@@ -668,14 +669,22 @@ function renderCurrencyOptions(list) {
     list.forEach(item => {
         const option = document.createElement('div');
         option.className = 'option-item';
-        if (item.code === state.selectedCurrency) option.classList.add('selected');
+
+        let isSelected = false;
+        if (state.searchMode === 'target') {
+            isSelected = (item.code === state.targetCurrency);
+        } else {
+            isSelected = (item.code === state.selectedCurrency);
+        }
+
+        if (isSelected) option.classList.add('selected');
 
         option.innerHTML = `
             <div class="option-info">
                 <span class="option-name">${item.nationName}</span>
                 <span class="option-code">(${item.code})</span>
             </div>
-            ${item.code === state.selectedCurrency ? '<span style="color:var(--accent-primary)">✔</span>' : ''}
+            ${isSelected ? '<span style="color:var(--accent-primary)">✔</span>' : ''}
         `;
         option.addEventListener('click', () => selectCurrency(item.code));
         elements.currencyOptionsList.appendChild(option);
@@ -688,20 +697,49 @@ const EUROZONE_COUNTRIES = [
 
 function selectCurrency(code) {
     if (!state.exchangeRates[code]) return;
-    state.selectedCurrency = code;
 
-    // Auto-Swap Logic (Foreigner Mode)
-    if (code === 'KRW') {
-        // If Input is KRW, Target should be Home Currency (or USD)
-        state.targetCurrency = state.homeCurrency || 'USD';
-        // Prevent KRW->KRW
-        if (state.targetCurrency === 'KRW') state.targetCurrency = 'USD';
+    if (state.searchMode === 'target') {
+        // Mode: Setting Target (Home) Currency
+        if (code === 'KRW') {
+            state.targetCurrency = 'KRW';
+            // If Target is KRW, Input should be Foreign.
+            // But we don't automatically change Input here unless it was KRW.
+        } else {
+            state.targetCurrency = code;
+            state.homeCurrency = code; // Remember preference
+
+            // If Input was previously KRW, it's fine (KRW -> Target).
+            // If Input was Foreign, we might want to set Input to KRW?
+            // "I am American. I see result in USD. I click USD."
+            // "I change to JPY." -> Now KRW -> JPY? Or USD -> JPY?
+            // Usually manual override means "Show me this currency".
+            // Let's assume Input becomes KRW if it wasn't.
+            if (state.selectedCurrency !== 'KRW') {
+                // state.selectedCurrency = 'KRW'; 
+                // Actually, let's keep input as is, UNLESS input==code (KRW->KRW prevent)
+            }
+        }
+
+        // Prevent Same -> Same
+        if (state.selectedCurrency === state.targetCurrency) {
+            if (state.targetCurrency === 'KRW') state.selectedCurrency = 'USD'; // Default fallback
+            else state.selectedCurrency = 'KRW';
+        }
+
     } else {
-        // If Input is Foreign, Target is KRW
-        state.targetCurrency = 'KRW';
+        // Mode: Setting Source (Input) Currency
+        state.selectedCurrency = code;
+
+        // Auto-Swap Logic (Foreigner Mode)
+        if (code === 'KRW') {
+            state.targetCurrency = state.homeCurrency || 'USD';
+            if (state.targetCurrency === 'KRW') state.targetCurrency = 'USD';
+        } else {
+            state.targetCurrency = 'KRW';
+        }
     }
 
-    // Reset Local Amount
+    // Reset UI & Calc
     elements.localAmount.value = '';
     toggleClearBtn('localAmount', '');
 
@@ -738,13 +776,28 @@ function selectCurrency(code) {
 // UI Interaction Logic
 // ===================================
 
-function openSearch() {
+function openSearch(mode = 'source') {
+    state.searchMode = mode;
     state.isSearchOpen = true;
-    elements.currencyDisplay.style.display = 'none';
+
+    // Position the search wrapper based on mode? 
+    // For now, it's absolute top left, which is fine for both.
+    // Ideally we want it to cover the relevant section, but full cover is safer.
+
+    elements.currencyDisplay.style.display = 'none'; // Hide source display
+    // If target mode, we might want to hide result label? 
+    // Actually search wrapper covers everything in 'currency-interaction-wrapper'
+    // But resultLabel is outside that.
+
+    // Let's just make search wrapper visible.
     elements.currencySearchWrapper.style.display = 'block';
-    elements.currencySearchInput.value = '';
+
+    const input = elements.currencySearchInput;
+    input.value = '';
+    input.placeholder = mode === 'source' ? '입력 화폐 검색...' : '내 화폐(국적) 검색...';
+
     renderCurrencyOptions(state.currencyList);
-    elements.currencySearchInput.focus();
+    input.focus();
 }
 
 function closeSearch() {
@@ -934,7 +987,13 @@ function initEventListeners() {
     // Auto Detect on Init
     detectUserNationality();
 
-    elements.currencyDisplay.addEventListener('click', openSearch);
+    elements.currencyDisplay.addEventListener('click', () => openSearch('source'));
+
+    // Result Label Click -> Search 'target'
+    if (elements.resultLabel) {
+        elements.resultLabel.addEventListener('click', () => openSearch('target'));
+    }
+
     elements.closeSearchBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         closeSearch();
