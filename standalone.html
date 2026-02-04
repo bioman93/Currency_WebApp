@@ -2311,8 +2311,13 @@ function preprocessImage(imageFile) {
 
                 ctx.putImageData(imageData, 0, 0);
 
-                // Return as blob
-                canvas.toBlob(resolve, 'image/png');
+                // Return as Base64 String (Fixed)
+                try {
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    resolve(dataUrl.split(',')[1]);
+                } catch (e) {
+                    reject(e);
+                }
             };
             img.src = e.target.result;
         };
