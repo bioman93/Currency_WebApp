@@ -1911,7 +1911,9 @@ function selectCurrency(code) {
             // User Feedback: Don't force USD. If homeCurrency is KRW (or unassigned), let it be.
             // if (state.targetCurrency === 'KRW') state.targetCurrency = 'USD';
         } else {
-            state.targetCurrency = 'KRW';
+            // Fix: If I select a foreign currency, my Target (Home) should remain my Home Currency.
+            // Only set to KRW if homeCurrency is not set.
+            state.targetCurrency = state.homeCurrency || 'KRW';
         }
     }
 
@@ -2066,6 +2068,24 @@ function calculate() {
 
     if (elements.resultLabel) elements.resultLabel.textContent = `${targetName} (${targetCode})`;
     if (elements.resultSymbol) elements.resultSymbol.textContent = targetSymbol;
+
+    // Restore Exchange Rate Display
+    if (elements.currentRateDisplay) {
+        const rateRel = sourceRate / targetRate;
+        const srcCode = state.selectedCurrency;
+        const tgtCode = state.targetCurrency;
+        let rateText = '';
+
+        if (['JPY', 'VND', 'IDR'].includes(srcCode)) {
+            // 100 Source = X Target
+            const val = rateRel * 100;
+            rateText = `100 ${srcCode} = ${formatNumber(val, 2)} ${tgtCode}`;
+        } else {
+            // 1 Source = X Target
+            rateText = `1 ${srcCode} = ${formatNumber(rateRel, 2)} ${tgtCode}`;
+        }
+        elements.currentRateDisplay.textContent = rateText;
+    }
 
     updateBreakdown({
         localAmount, serviceCharge, withService, taxRate,
