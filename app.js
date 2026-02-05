@@ -155,14 +155,24 @@ const elements = {
     targetSearchInput: document.getElementById('targetSearchInput'),
     targetCloseBtn: document.getElementById('targetCloseBtn'),
     targetOptionsList: document.getElementById('targetOptionsList'),
-    refreshRateBtn: document.getElementById('refreshRateBtn'),
+
     rateUpdateTime: document.getElementById('rateUpdateTime'),
 
-    // Auth Elements
-    userProfile: document.getElementById('userProfile'),
-    userAvatar: document.getElementById('userAvatar'),
-    userName: document.getElementById('userName'),
-    signOutBtn: document.getElementById('signOutBtn'),
+    // Menu Elements
+    mainMenuBtn: document.getElementById('mainMenuBtn'),
+    mainMenuDropdown: document.getElementById('mainMenuDropdown'),
+    menuProfileSection: document.getElementById('menuProfileSection'),
+    menuUserAvatar: document.getElementById('menuUserAvatar'),
+    menuUserName: document.getElementById('menuUserName'),
+    menuUserEmail: document.querySelector('.menu-user-email'),
+
+    // Menu Items
+    menuItemReceipt: document.getElementById('menuItemReceipt'),
+    menuItemLogin: document.getElementById('menuItemLogin'),
+    menuItemRefresh: document.getElementById('menuItemRefresh'),
+    menuItemAppInfo: document.getElementById('menuItemAppInfo'),
+    menuItemLogout: document.getElementById('menuItemLogout'),
+
     cameraLockedMsg: document.getElementById('cameraLockedMsg'),
 
     // OCR & Receipt Elements
@@ -171,7 +181,7 @@ const elements = {
     cameraInput: document.getElementById('cameraInput'),
 
     // Receipt Manager
-    receiptManagerBtn: document.getElementById('receiptManagerBtn'),
+
     receiptModal: document.getElementById('receiptModal'),
     receiptCameraBtn: document.getElementById('receiptCameraBtn'),
     receiptInput: document.getElementById('receiptInput'),
@@ -203,7 +213,7 @@ window.handleCredentialResponse = function (response) {
         authState.user = responsePayload;
         authState.credential = response.credential;
 
-        updateUIForLoginState();
+        updateMenuState(true, responsePayload);
     }
 };
 
@@ -216,34 +226,43 @@ function decodeJwtResponse(token) {
     return JSON.parse(jsonPayload);
 }
 
-function updateUIForLoginState() {
-    if (authState.isLoggedIn && authState.user) {
-        // Hide Google Btn
-        const gBtn = document.querySelector('.g_id_signin');
-        if (gBtn) gBtn.style.display = 'none';
+function updateMenuState(isLoggedIn, user = null) {
+    if (isLoggedIn && user) {
+        // Show Profile Section
+        if (elements.menuProfileSection) {
+            elements.menuProfileSection.style.display = 'flex';
+            elements.menuUserAvatar.src = user.picture;
+            elements.menuUserName.textContent = user.given_name || user.name;
+            if (elements.menuUserEmail) elements.menuUserEmail.textContent = user.email || 'Logged in via Google';
+        }
 
-        // Show Profile & Receipt Mgr
-        elements.userProfile.style.display = 'flex';
-        if (elements.receiptManagerBtn) elements.receiptManagerBtn.style.display = 'block';
+        // Show Logged In Items
+        if (elements.menuItemReceipt) elements.menuItemReceipt.style.display = 'flex';
+        if (elements.menuItemLogout) elements.menuItemLogout.style.display = 'flex';
 
-        elements.userAvatar.src = authState.user.picture;
-        elements.userName.textContent = authState.user.given_name || authState.user.name;
+        // Hide Login Item
+        if (elements.menuItemLogin) elements.menuItemLogin.style.display = 'none';
 
-        // Show Camera (Visible on all devices when logged in)
+        // Show Camera Section (Visible on all devices when logged in)
         if (elements.cameraSection) elements.cameraSection.style.display = 'flex';
         if (elements.cameraLockedMsg) elements.cameraLockedMsg.style.display = 'none';
-    } else {
-        // Show Google Btn
-        const gBtn = document.querySelector('.g_id_signin');
-        if (gBtn) gBtn.style.display = 'block';
 
-        // Hide Profile
-        elements.userProfile.style.display = 'none';
+    } else {
+        // Hide Profile Section
+        if (elements.menuProfileSection) elements.menuProfileSection.style.display = 'none';
+
+        // Hide Logged In Items
+        if (elements.menuItemReceipt) elements.menuItemReceipt.style.display = 'none';
+        if (elements.menuItemLogout) elements.menuItemLogout.style.display = 'none';
+
+        // Show Login Item
+        // Note: Google Button handles its own display, but we wrap it in an LI
+        if (elements.menuItemLogin) elements.menuItemLogin.style.display = 'flex';
 
         // Hide Camera, Show Lock Msg
         if (elements.cameraSection) elements.cameraSection.style.display = 'none';
         if (elements.cameraLockedMsg) {
-            // Only show lock message on mobile
+            // Only show lock message on mobile or where relevant
             elements.cameraLockedMsg.style.display = 'block';
         }
     }
@@ -254,8 +273,7 @@ function signOut() {
     authState.user = null;
     authState.credential = null;
     google.accounts.id.disableAutoSelect();
-    updateUIForLoginState();
-    updateUIForLoginState();
+    updateMenuState(false);
 }
 
 function detectUserNationality() {
@@ -1223,24 +1241,55 @@ function initEventListeners() {
         calculate();
     });
 
-    elements.refreshRateBtn.addEventListener('click', async () => {
-        await fetchExchangeRates(true);
-        elements.refreshRateBtn.blur();
-    });
-    elements.detectLocationBtn.addEventListener('click', () => detectLocation(true));
-
-    // Auth Listeners
-    if (elements.signOutBtn) {
-        elements.signOutBtn.addEventListener('click', signOut);
-    }
-
-    // Receipt Manager Wrapper
-    if (elements.receiptManagerBtn) {
-        elements.receiptManagerBtn.addEventListener('click', () => {
-            const modal = document.getElementById('receiptModal');
-            if (modal) modal.style.display = 'block';
+    // Menu Toggle Logic
+    if (elements.mainMenuBtn) {
+        elements.mainMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = elements.mainMenuDropdown.style.display === 'block';
+            elements.mainMenuDropdown.style.display = isVisible ? 'none' : 'block';
         });
     }
+
+    // Close Menu when clicking outside
+    window.addEventListener('click', (e) => {
+        if (elements.mainMenuDropdown && elements.mainMenuDropdown.style.display === 'block') {
+            if (!elements.mainMenuDropdown.contains(e.target) && !elements.mainMenuBtn.contains(e.target)) {
+                elements.mainMenuDropdown.style.display = 'none';
+            }
+        }
+    });
+
+    // Menu Actions
+    if (elements.menuItemRefresh) {
+        elements.menuItemRefresh.addEventListener('click', async () => {
+            await fetchExchangeRates(true);
+            if (elements.mainMenuDropdown) elements.mainMenuDropdown.style.display = 'none';
+        });
+    }
+
+    if (elements.menuItemAppInfo) {
+        elements.menuItemAppInfo.addEventListener('click', () => {
+            alert('💱 환율 계산기 v1.5\n\n- 실시간 환율 (Global Standard)\n- 영수증 AI 분석\n- 자동 위치 감지\n\nDeveloped by Antigravity');
+            if (elements.mainMenuDropdown) elements.mainMenuDropdown.style.display = 'none';
+        });
+    }
+
+    if (elements.menuItemLogout) {
+        elements.menuItemLogout.addEventListener('click', () => {
+            signOut();
+            if (elements.mainMenuDropdown) elements.mainMenuDropdown.style.display = 'none';
+        });
+    }
+
+    if (elements.menuItemReceipt) {
+        elements.menuItemReceipt.addEventListener('click', () => {
+            const modal = document.getElementById('receiptModal');
+            if (modal) modal.style.display = 'block';
+            if (elements.mainMenuDropdown) elements.mainMenuDropdown.style.display = 'none';
+        });
+    }
+
+    if (elements.detectLocationBtn) elements.detectLocationBtn.addEventListener('click', () => detectLocation(true));
 
     // Modal Close Logic (Global for simplicity or specific)
     const receiptModal = document.getElementById('receiptModal');

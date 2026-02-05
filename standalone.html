@@ -140,22 +140,26 @@ color: var(--text-tertiary);
 
 /* ===================================
    Header Controls & Auth
+/* ===================================
+   Header Controls & Auth
    =================================== */
 .header-content {
-    position: relative;
-    /* Context for absolute positioning */
+    display: flex;
+    align-items: center;
     justify-content: center;
+    /* Keep everything centered together */
+    gap: var(--spacing-md);
+    position: relative;
+    flex-wrap: wrap;
+    /* Safety for very small screens */
 }
 
+/* Group icons together next to title */
 .header-right {
-    position: absolute;
-    right: var(--spacing-md);
-    /* Fix: Add padding from edge */
-    top: 50%;
-    transform: translateY(-50%);
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    /* Removed absolute positioning */
 }
 
 .icon-btn {

@@ -71,40 +71,65 @@
                 <h1 class="app-title">💱 환율 계산기</h1>
 
                 <div class="header-right">
-                    <!-- Receipt Manager Button -->
-                    <button id="receiptManagerBtn" class="icon-btn" aria-label="영수증 관리" style="display:none;">
-                        <span style="font-size: 1.2rem;">🧾</span>
-                    </button>
-
-                    <!-- User Profile (Hidden by default) -->
-                    <div id="userProfile" class="user-profile">
-                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
-                        <span id="userName">User</span>
-                        <!-- SignOut moved directly here -->
-                        <button id="signOutBtn" class="icon-btn" aria-label="로그아웃">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M18 6L6 18M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-
-                    <!-- Google Sign-In Button -->
-                    <div id="g_id_onload"
-                        data-client_id="708082750675-162qtq9rpl4g5t6247dr87joitbksaua.apps.googleusercontent.com"
-                        data-callback="handleCredentialResponse" data-auto_select="false" data-itp_support="true">
-                    </div>
-                    <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline"
-                        data-text="signin_with" data-size="medium">
-                    </div>
-
-                    <button id="refreshRateBtn" class="refresh-btn" aria-label="환율 새로고침">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    <!-- Menu Button -->
+                    <button id="mainMenuBtn" class="header-menu-btn" aria-label="메뉴 열기">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
-                            <path d="M23 4v6h-6M1 20v-6h6" />
-                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                            <path d="M3 12h18M3 6h18M3 18h18" />
                         </svg>
                     </button>
+
+                    <!-- Main Menu Dropdown -->
+                    <div id="mainMenuDropdown" class="menu-dropdown" style="display: none;">
+                        <!-- Logged In Header (Profile) -->
+                        <div id="menuProfileSection" class="menu-profile-section" style="display: none;">
+                            <img id="menuUserAvatar" class="menu-user-avatar" src="" alt="Profile">
+                            <div class="menu-user-info">
+                                <span id="menuUserName" class="menu-user-name">User</span>
+                                <span class="menu-user-email">Logged in via Google</span>
+                            </div>
+                        </div>
+
+                        <!-- Menu Items -->
+                        <ul class="menu-list">
+                            <!-- Logged In Items -->
+                            <li id="menuItemReceipt" class="menu-item" style="display: none;">
+                                <span class="menu-icon">🧾</span>
+                                <span>영수증 정리</span>
+                            </li>
+
+                            <!-- Login Item (Logged Out) -->
+                            <li id="menuItemLogin" class="menu-item" style="display: none;">
+                                <div id="g_id_onload"
+                                    data-client_id="708082750675-162qtq9rpl4g5t6247dr87joitbksaua.apps.googleusercontent.com"
+                                    data-callback="handleCredentialResponse" data-auto_select="false"
+                                    data-itp_support="true">
+                                </div>
+                                <div class="g_id_signin" data-type="standard" data-shape="rectangular"
+                                    data-theme="outline" data-text="signin_with" data-size="large"
+                                    data-logo_alignment="left">
+                                </div>
+                            </li>
+
+                            <!-- Common Items -->
+                            <li id="menuItemRefresh" class="menu-item">
+                                <span class="menu-icon">🔄</span>
+                                <span>환율 정보 업데이트</span>
+                            </li>
+                            <li id="menuItemAppInfo" class="menu-item">
+                                <span class="menu-icon">ℹ️</span>
+                                <span>앱 정보</span>
+                            </li>
+
+                            <div class="menu-divider"></div>
+
+                            <!-- Logout Item -->
+                            <li id="menuItemLogout" class="menu-item" style="display: none;">
+                                <span class="menu-icon">🚪</span>
+                                <span>로그아웃</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </header>
