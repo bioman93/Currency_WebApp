@@ -149,7 +149,8 @@ color: var(--text-tertiary);
 
 .header-right {
     position: absolute;
-    right: 0;
+    right: var(--spacing-md);
+    /* Fix: Add padding from edge */
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -898,6 +899,105 @@ color: var(--text-tertiary);
     border-bottom: 1px solid var(--border-color);
     padding: var(--spacing-xs);
 }
+
+/* ===================================
+   Modal Styles
+   =================================== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background-color: var(--bg-secondary);
+    margin: 15% auto;
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.close-modal {
+    color: var(--text-tertiary);
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+    color: var(--text-primary);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-header {
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.modal-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.receipt-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.action-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: var(--accent-primary);
+    color: #000;
+}
+
+.btn-secondary {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
 </style>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
@@ -1160,6 +1260,30 @@ color: var(--text-tertiary);
             <p id="sourceInfo">환율 정보: Global Standard API</p>
             <p class="disclaimer">※ 실제 환전 시 환율은 다를 수 있습니다</p>
         </footer>
+    </div>
+
+    <!-- Receipt Manager Modal -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="modal-header">
+                <div class="modal-title">🧾 영수증 관리</div>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px 0;">
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    영수증을 촬영하거나 업로드하여<br>AI로 상세 내역을 분석하고 저장합니다.
+                </p>
+
+                <div class="receipt-actions">
+                    <button class="action-btn btn-secondary" onclick="alert('준비 중인 기능입니다 (업로드)')">
+                        <span>📤 업로드</span>
+                    </button>
+                    <button class="action-btn btn-primary" onclick="alert('준비 중인 기능입니다 (촬영)')">
+                        <span>📸 촬영</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2397,6 +2521,28 @@ function initEventListeners() {
     // Auth Listeners
     if (elements.signOutBtn) {
         elements.signOutBtn.addEventListener('click', signOut);
+    }
+
+    // Receipt Manager Wrapper
+    if (elements.receiptManagerBtn) {
+        elements.receiptManagerBtn.addEventListener('click', () => {
+            const modal = document.getElementById('receiptModal');
+            if (modal) modal.style.display = 'block';
+        });
+    }
+
+    // Modal Close Logic (Global for simplicity or specific)
+    const receiptModal = document.getElementById('receiptModal');
+    if (receiptModal) {
+        const closeSpan = receiptModal.querySelector('.close-modal');
+        if (closeSpan) {
+            closeSpan.onclick = () => receiptModal.style.display = 'none';
+        }
+        window.onclick = (event) => {
+            if (event.target == receiptModal) {
+                receiptModal.style.display = 'none';
+            }
+        };
     }
 }
 

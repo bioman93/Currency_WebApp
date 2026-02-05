@@ -1233,6 +1233,28 @@ function initEventListeners() {
     if (elements.signOutBtn) {
         elements.signOutBtn.addEventListener('click', signOut);
     }
+
+    // Receipt Manager Wrapper
+    if (elements.receiptManagerBtn) {
+        elements.receiptManagerBtn.addEventListener('click', () => {
+            const modal = document.getElementById('receiptModal');
+            if (modal) modal.style.display = 'block';
+        });
+    }
+
+    // Modal Close Logic (Global for simplicity or specific)
+    const receiptModal = document.getElementById('receiptModal');
+    if (receiptModal) {
+        const closeSpan = receiptModal.querySelector('.close-modal');
+        if (closeSpan) {
+            closeSpan.onclick = () => receiptModal.style.display = 'none';
+        }
+        window.onclick = (event) => {
+            if (event.target == receiptModal) {
+                receiptModal.style.display = 'none';
+            }
+        };
+    }
 }
 
 // Timezone to Currency Mapping
