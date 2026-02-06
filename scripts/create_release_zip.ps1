@@ -13,6 +13,9 @@ $excludeList = @(
     "node_modules",
     "dev-guidelines",
     "scripts",
+    "docs",          # 내부 문서 폴더 제외
+    "GEMINI.md",     # 내부 개발 가이드 제외
+    "CLAUDE.md",     # 내부 개발 가이드 제외
     "*.zip",
     "*.log",
     "backend/Code.gs" # 백엔드 키 포함 가능성 있으므로 주의 (또는 키 제거 버전만 포함)
