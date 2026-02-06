@@ -15,9 +15,14 @@
 ## 3. 개발 기본 원칙 (Development Principles)
 본 원칙은 향후 다양한 프로젝트에 공통적으로 적용됩니다.
 
-### 3.1 개발 방법론 (Development Methodology)
-*   **스펙 주도 개발 (SDD)**: 개발은 코딩 이전에 기획서와 개발 백서(White Paper) 등 명확한 스펙 정의를 선행해야 합니다. 구현된 코드는 정의된 스펙을 충실히 반영해야 합니다.
-*   **검증 주도 개발**: 기능 구현 후에는 브라우저 시뮬레이션 또는 코드 정적 분석을 통해 반드시 동작을 검증합니다.
+### 3.1 개발 방법론 (Development Methodology - powered by spec-kit)
+*   **프로세스 (Workflow)**: `Principles` → `Spec` → `Plan` → `Tasks` → `Implement` 순서를 준수합니다.
+    1.  **원칙 수립 (Constitution)**: 프로젝트의 핵심 원칙 정의 (본 `GEMINI.md`가 그 역할을 함)
+    2.  **스펙 정의 (Spec)**: "무엇을", "왜" 만드는지 정의 (기술 스택 제외, 사용자 관점)
+    3.  **기술 계획 (Plan)**: 아키텍처, 기술 스택, 데이터 모델 설계
+    4.  **작업 분해 (Tasks)**: 실행 가능한 단위로 작업 목록 생성 (`task.md`)
+    5.  **구현 (Implement)**: 계획된 작업의 순차적 실행 및 TDD/검증
+*   **검증**: 각 단계 완료 시 사용자의 승인을 득한 후 다음 단계로 진행합니다.
 
 ### 3.2 코드 구조 및 아키텍처 (Code Architecture)
 *   **모듈화 및 재사용성 (Modularity)**: 코드의 재사용성을 높이기 위해 기능 및 용도 단위로(예: Utils, Components, Services) 파일을 철저히 분리하여 생성하고 관리합니다.
