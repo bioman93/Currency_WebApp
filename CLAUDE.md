@@ -34,6 +34,10 @@
 *   **리소스 최적화 (Resource Logic)**: 개발하는 모든 프로젝트에는 **반드시 `.antigravityignore` 파일을 생성 및 관리**하여 시스템 메모리를 효율적으로 사용해야 합니다.
     *   빌드 생성물, 테스트 부산물 등 개발에 직접 필요하지 않은 파일은 분석 대상에서 제외합니다.
 
+### 3.4 개발 환경 표준 (Development Environment Standard)
+*   **Target IDE**: C#, C++, Java 등 컴파일 언어 개발 시 **Visual Studio 2019 Pro**를 표준 빌드 및 개발 환경으로 기준 삼습니다.
+*   **호환성**: 모든 소스 코드와 프로젝트 설정은 **VS 2019 Pro**에서 즉시 빌드 및 실행 가능하도록 구성되어야 합니다.
+
 ## 4. 버전 관리 (Version Control)
 *   **커밋 메시지 (Commit Message)**: 커밋 메시지는 **한글과 영문을 병기**하여 작성합니다.
     *   형식: `type: English description (한글 설명)`
