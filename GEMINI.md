@@ -26,3 +26,8 @@
 ### 3.3 유지보수 및 최적화 (Maintenance & Optimization)
 *   **지속적 업데이트**: 개발 백서(White Paper) 등 프로젝트 사양 문서는 개발 변경 사항을 수시로 반영하여 최신 상태(Source of Truth)를 유지합니다.
 *   **효율성**: `.antigravityignore` 등을 활용하여 불필요한 시스템 리소스 낭비를 방지합니다.
+
+## 4. 버전 관리 (Version Control)
+*   **커밋 메시지 (Commit Message)**: 커밋 메시지는 **한글과 영문을 병기**하여 작성합니다.
+    *   형식: `type: English description (한글 설명)`
+    *   예: `feat: Add receipt upload feature (영수증 업로드 기능 추가)`
