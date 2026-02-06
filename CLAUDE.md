@@ -47,4 +47,4 @@
     *   **IDE 설정**: `.vs/`, `.idea/`, `.vscode/`, `*.iml`
     *   **보안/설정**: `secrets.json`, `.env`, `appsettings.Development.json`, `backend/config` (API Key 포함 파일)
     *   **내부 문서**: `docs/` (내부 기획서), `GEMINI.md`, `CLAUDE.md` 등 협업 가이드
-*   **스크립트 활용**: 위 규칙을 준수하기 위해 `scripts/create_release_zip.ps1` 와 같은 자동화 스크립트를 사용하여 실수를 방지합니다.
+*   **스크립트 활용**: 위 규칙을 준수하기 위해 `dev-guidelines/scripts/create_release_zip.ps1` 와 같은 자동화 스크립트를 사용하여 실수를 방지합니다.
