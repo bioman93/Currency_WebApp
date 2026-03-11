@@ -18,7 +18,9 @@ const CONFIG = {
     BACKUP_API: 'https://api.stock.naver.com/marketindex/exchanges',
     APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxHQoBuTpCGUVbsqsR7n7i8lGw5SS35eGg1ptJlmPkGI5oXwQ_fyk5sJcdVShct24kA/exec',
     UPDATE_INTERVAL: 0,
-    CACHE_KEY: 'exchange_rates_cache_v2'
+    CACHE_KEY: 'exchange_rates_cache_v2',
+    FETCH_TIMEOUT: 5000,   // ms: 프록시 요청 타임아웃
+    ALERT_DELAY: 100       // ms: 모바일 blur 렌더링 후 alert 표시 지연
 };
 
 const FALLBACK_DATA = [
@@ -110,8 +112,6 @@ const state = {
     targetCurrency: 'KRW', // Default Target
     searchMode: 'source', // 'source' (Input) or 'target' (Output)
     serviceChargeType: 'percent',
-    isOptionsOpen: false,
-    isOptionsOpen: false,
     isOptionsOpen: false,
     isSearchOpen: false,
     detectedTimeZone: null,
@@ -295,25 +295,21 @@ function mapLocaleToCurrency(locale) {
     const code = locale.split('-')[0].toLowerCase();
     const region = locale.split('-')[1] ? locale.split('-')[1].toUpperCase() : null;
 
+    // 언어 코드 → 통화 코드 맵 (영어권은 지역 코드로 세분화)
+    const LOCALE_CURRENCY_MAP = {
+        'ja': 'JPY', 'zh': 'CNY', 'ko': 'KRW',
+        'fr': 'EUR', 'de': 'EUR', 'it': 'EUR', 'es': 'EUR',
+        'ru': 'RUB', 'th': 'THB', 'vi': 'VND'
+    };
+    const EN_REGION_MAP = { 'GB': 'GBP', 'AU': 'AUD', 'CA': 'CAD' };
+
     let target = 'KRW'; // Default fallback
 
-    // Simple Mapping
     if (code === 'en') {
-        if (region === 'GB') target = 'GBP'; // UK
-        else if (region === 'AU') target = 'AUD';
-        else if (region === 'CA') target = 'CAD';
-        else target = 'USD'; // Default US
+        target = EN_REGION_MAP[region] || 'USD';
+    } else {
+        target = LOCALE_CURRENCY_MAP[code] || 'KRW';
     }
-    else if (code === 'ja') target = 'JPY';
-    else if (code === 'zh') target = 'CNY';
-    else if (code === 'ko') target = 'KRW';
-    else if (code === 'fr') target = 'EUR';
-    else if (code === 'de') target = 'EUR';
-    else if (code === 'it') target = 'EUR';
-    else if (code === 'es') target = 'EUR';
-    else if (code === 'ru') target = 'RUB';
-    else if (code === 'th') target = 'THB';
-    else if (code === 'vi') target = 'VND';
 
     // Verification
     // We can only set it if it exists in our data
@@ -362,7 +358,7 @@ async function fetchExchangeRates(forceUpdate = false) {
                     if (document.activeElement) document.activeElement.blur();
                     setTimeout(() => {
                         alert('현재 데이터가 최신입니다.\n(다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
-                    }, 100); // Slight increase in delay to ensure blur renders
+                    }, CONFIG.ALERT_DELAY);
                 }
                 processData(data); // Use cached
                 state.lastUpdated = new Date(timestamp);
@@ -428,7 +424,7 @@ async function fetchExchangeRates(forceUpdate = false) {
             const url = proxy + encodeURIComponent(CONFIG.TARGET_URL);
             // Add timeout signal to fail fast
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout per proxy
+            const timeoutId = setTimeout(() => controller.abort(), CONFIG.FETCH_TIMEOUT);
 
             const response = await fetch(url, { signal: controller.signal });
             clearTimeout(timeoutId);
@@ -692,37 +688,6 @@ function sortCurrencyList() {
     });
 }
 
-function renderCurrencyOptions(list) {
-    elements.currencyOptionsList.innerHTML = '';
-    if (list.length === 0) {
-        elements.currencyOptionsList.innerHTML = '<div class="no-results">검색 결과가 없습니다</div>';
-        return;
-    }
-    list.forEach(item => {
-        const option = document.createElement('div');
-        option.className = 'option-item';
-
-        let isSelected = false;
-        if (state.searchMode === 'target') {
-            isSelected = (item.code === state.targetCurrency);
-        } else {
-            isSelected = (item.code === state.selectedCurrency);
-        }
-
-        if (isSelected) option.classList.add('selected');
-
-        option.innerHTML = `
-            <div class="option-info">
-                <span class="option-name">${item.nationName}</span>
-                <span class="option-code">(${item.code})</span>
-            </div>
-            ${isSelected ? '<span style="color:var(--accent-primary)">✔</span>' : ''}
-        `;
-        option.addEventListener('click', () => selectCurrency(item.code));
-        elements.currencyOptionsList.appendChild(option);
-    });
-}
-
 const EUROZONE_COUNTRIES = [
     'AT', 'BE', 'HR', 'CY', 'EE', 'FI', 'FR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PT', 'SK', 'SI', 'ES', 'AD', 'MC', 'SM', 'VA'
 ];
@@ -868,50 +833,6 @@ function selectCurrency(code) {
 
 
 // ===================================
-// UI Interaction Logic
-// ===================================
-
-function openSearch(mode = 'source') {
-    state.searchMode = mode;
-    state.isSearchOpen = true;
-
-    // Position the search wrapper based on mode? 
-    // For now, it's absolute top left, which is fine for both.
-    // Ideally we want it to cover the relevant section, but full cover is safer.
-
-    elements.currencyDisplay.style.display = 'none'; // Hide source display
-    // If target mode, we might want to hide result label? 
-    // Actually search wrapper covers everything in 'currency-interaction-wrapper'
-    // But resultLabel is outside that.
-
-    // Let's just make search wrapper visible.
-    elements.currencySearchWrapper.style.display = 'block';
-
-    const input = elements.currencySearchInput;
-    input.value = '';
-    input.placeholder = mode === 'source' ? '입력 화폐 검색...' : '내 화폐(국적) 검색...';
-
-    renderCurrencyOptions(state.currencyList);
-    input.focus();
-}
-
-function closeSearch() {
-    state.isSearchOpen = false;
-    elements.currencySearchWrapper.style.display = 'none';
-    elements.currencyDisplay.style.display = 'flex';
-}
-
-function filterCurrencyList(query) {
-    const lowerQuery = query.toLowerCase();
-    const filtered = state.currencyList.filter(item =>
-        item.code.toLowerCase().includes(lowerQuery) ||
-        item.name.toLowerCase().includes(lowerQuery) ||
-        item.nationName.toLowerCase().includes(lowerQuery)
-    );
-    renderCurrencyOptions(filtered);
-}
-
-// ===================================
 // Helper: Input Handling (Commas)
 // ===================================
 
@@ -1037,8 +958,6 @@ function updateBreakdown(data) {
         if (data.taxRate > 0) html += itemRow(`+ 세금 (${data.taxRate}%)`, data.withService * (data.taxRate / 100), symbol);
         if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
 
-        if (data.feeRate > 0) html += itemRow(`+ 수수료 (${data.feeRate}%)`, data.withTax * (data.feeRate / 100), symbol);
-
         const targetSymbol = getCurrencySymbol(data.targetCode);
         html += `
             <div class="breakdown-item"><span>변환 금액 (${data.targetCode})</span><span>${targetSymbol}${formatNumber(data.resultValue, 2)}</span></div>
@@ -1102,7 +1021,6 @@ function initEventListeners() {
 
     elements.currencyDisplay.addEventListener('click', () => openSearch('source'));
 
-    // Result Label Click -> Search 'target'
     // Result Label Click -> Search 'target'
     const openTargetSearch = (e) => {
         // Prevent triggering if clicking something interactive inside (if any)
