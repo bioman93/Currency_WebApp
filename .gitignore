@@ -19,3 +19,6 @@ npm-debug.log*
 # Build output (if any)
 dist/
 build/
+
+# Dev guidelines (local only, not needed for deployment)
+dev-guidelines/
