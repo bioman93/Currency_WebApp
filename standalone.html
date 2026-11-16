@@ -972,6 +972,38 @@ color: var(--text-tertiary);
     font-weight: 600;
 }
 
+.receipt-result {
+    margin-top: var(--spacing-md);
+}
+
+.receipt-status {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-sm);
+    white-space: pre-line;
+}
+
+.receipt-preview {
+    text-align: left;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    max-height: 50vh;
+    overflow-y: auto;
+    word-break: break-word;
+}
+
+.receipt-preview hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: var(--spacing-sm) 0;
+}
+
+.receipt-apply-btn,
+.receipt-save-btn {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+}
+
 .receipt-actions {
     display: flex;
     gap: 10px;
@@ -1279,12 +1311,21 @@ color: var(--text-tertiary);
                 </p>
 
                 <div class="receipt-actions">
-                    <button class="action-btn btn-secondary" onclick="alert('준비 중인 기능입니다 (업로드)')">
+                    <button type="button" class="action-btn btn-secondary" id="receiptUploadBtn">
                         <span>📤 업로드</span>
                     </button>
-                    <button class="action-btn btn-primary" onclick="alert('준비 중인 기능입니다 (촬영)')">
+                    <button type="button" class="action-btn btn-primary" id="receiptCameraBtn">
                         <span>📸 촬영</span>
                     </button>
+                </div>
+                <input type="file" id="receiptInput" accept="image/*" capture="environment" style="display: none;">
+                <input type="file" id="receiptUploadInput" accept="image/*" style="display: none;">
+
+                <div id="receiptResult" class="receipt-result" style="display: none;">
+                    <p id="receiptStatus" class="receipt-status"></p>
+                    <div id="receiptPreview" class="receipt-preview"></div>
+                    <button type="button" id="saveReceiptBtn" class="action-btn btn-secondary receipt-save-btn"
+                        style="display: none;">💾 가계부에 저장</button>
                 </div>
             </div>
         </div>
@@ -1489,6 +1530,8 @@ const elements = {
     receiptModal: document.getElementById('receiptModal'),
     receiptCameraBtn: document.getElementById('receiptCameraBtn'),
     receiptInput: document.getElementById('receiptInput'),
+    receiptUploadBtn: document.getElementById('receiptUploadBtn'),
+    receiptUploadInput: document.getElementById('receiptUploadInput'),
     receiptResult: document.getElementById('receiptResult'),
     receiptStatus: document.getElementById('receiptStatus'),
     receiptPreview: document.getElementById('receiptPreview'),
@@ -2511,8 +2554,7 @@ function initEventListeners() {
     // Receipt Manager Wrapper
     if (elements.receiptManagerBtn) {
         elements.receiptManagerBtn.addEventListener('click', () => {
-            const modal = document.getElementById('receiptModal');
-            if (modal) modal.style.display = 'block';
+            openReceiptModal();
         });
     }
 
@@ -2627,6 +2669,7 @@ function detectLocation(interactive = false) {
         }
 
         state.lastDetectedCode = targetCode;
+        state.localCurrency = targetCode; // 통화 기호 판단 힌트용 (소비되지 않음)
 
         // Find matching currency
         const found = state.currencyList.find(c => c.code === targetCode);
@@ -2818,108 +2861,176 @@ function extractPrices(text) {
     return prices.slice(0, 10); // Return top 10 prices
 }
 
-// Image Preprocessing for better OCR accuracy
-function preprocessImage(imageFile) {
-    return new Promise((resolve) => {
+// ===================================
+// Image & Currency Helpers (가격표/영수증 AI 인식)
+// ===================================
+
+const OCR_MAX_EDGE = 1600;      // px: 업로드 전 긴 변 최대 길이 (속도·용량·iOS 캔버스 한도 대응)
+const OCR_JPEG_QUALITY = 0.85;
+
+// 사진을 긴 변 OCR_MAX_EDGE 이하로 줄여 컬러 JPEG base64 로 반환.
+// 흑백/이진화는 AI 비전 모델의 인식률을 떨어뜨리므로 하지 않는다.
+function prepareImageForAI(imageFile) {
+    return new Promise((resolve, reject) => {
+        if (!imageFile || (imageFile.type && !imageFile.type.startsWith('image/'))) {
+            reject(new Error('이미지 파일이 아닙니다.'));
+            return;
+        }
+
+        const url = URL.createObjectURL(imageFile);
         const img = new Image();
-        const reader = new FileReader();
 
-        reader.onload = (e) => {
-            img.onload = () => {
+        img.onload = () => {
+            try {
+                const srcW = img.naturalWidth || img.width;
+                const srcH = img.naturalHeight || img.height;
+                if (!srcW || !srcH) throw new Error('사진 크기를 읽을 수 없습니다.');
+
+                const scale = Math.min(1, OCR_MAX_EDGE / Math.max(srcW, srcH));
+                const width = Math.max(1, Math.round(srcW * scale));
+                const height = Math.max(1, Math.round(srcH * scale));
+
                 const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-
-                // Scale up small images for better recognition
-                const minSize = 1000;
-                let width = img.width;
-                let height = img.height;
-
-                if (width < minSize && height < minSize) {
-                    const scale = minSize / Math.max(width, height);
-                    width *= scale;
-                    height *= scale;
-                }
-
                 canvas.width = width;
                 canvas.height = height;
-
-                // Draw original image
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; // 투명 PNG 대비
+                ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Get image data
-                const imageData = ctx.getImageData(0, 0, width, height);
-                const data = imageData.data;
-
-                // Step 1: Grayscale conversion
-                for (let i = 0; i < data.length; i += 4) {
-                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                    data[i] = gray;     // R
-                    data[i + 1] = gray; // G
-                    data[i + 2] = gray; // B
-                }
-
-                // Step 2: Contrast enhancement (1.5x)
-                const contrast = 1.5;
-                const factor = (259 * (contrast * 100 + 255)) / (255 * (259 - contrast * 100));
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
-                    data[i + 1] = data[i];
-                    data[i + 2] = data[i];
-                }
-
-                // Step 3: Binarization (Otsu's threshold approximation)
-                // Calculate histogram
-                const histogram = new Array(256).fill(0);
-                for (let i = 0; i < data.length; i += 4) {
-                    histogram[Math.floor(data[i])]++;
-                }
-
-                // Find optimal threshold
-                const total = width * height;
-                let sum = 0, sumB = 0, wB = 0, wF = 0;
-                let maxVariance = 0, threshold = 128;
-
-                for (let i = 0; i < 256; i++) sum += i * histogram[i];
-
-                for (let t = 0; t < 256; t++) {
-                    wB += histogram[t];
-                    if (wB === 0) continue;
-                    wF = total - wB;
-                    if (wF === 0) break;
-
-                    sumB += t * histogram[t];
-                    const mB = sumB / wB;
-                    const mF = (sum - sumB) / wF;
-                    const variance = wB * wF * (mB - mF) * (mB - mF);
-
-                    if (variance > maxVariance) {
-                        maxVariance = variance;
-                        threshold = t;
-                    }
-                }
-
-                // Apply threshold
-                for (let i = 0; i < data.length; i += 4) {
-                    const value = data[i] > threshold ? 255 : 0;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                }
-
-                ctx.putImageData(imageData, 0, 0);
-
-                // Return as Base64 String (Fixed)
-                try {
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    resolve(dataUrl.split(',')[1]);
-                } catch (e) {
-                    reject(e);
-                }
-            };
-            img.src = e.target.result;
+                const base64 = canvas.toDataURL('image/jpeg', OCR_JPEG_QUALITY).split(',')[1];
+                if (!base64) throw new Error('사진 변환에 실패했습니다.');
+                resolve(base64);
+            } catch (e) {
+                reject(e);
+            } finally {
+                URL.revokeObjectURL(url);
+            }
         };
-        reader.readAsDataURL(imageFile);
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('사진을 읽을 수 없습니다. 지원하지 않는 형식일 수 있어요 (JPG/PNG로 다시 시도해 주세요).'));
+        };
+
+        img.src = url;
     });
+}
+
+// 통화 기호/표기 → 후보 통화 (앞쪽이 기본값). 키는 대문자·공백 제거 기준.
+const CURRENCY_SYMBOL_CANDIDATES = {
+    '$': ['USD', 'HKD', 'TWD', 'SGD', 'AUD', 'CAD', 'NZD', 'MXN', 'BND'],
+    'US$': ['USD'], 'HK$': ['HKD'], 'NT$': ['TWD'], 'NT': ['TWD'], 'S$': ['SGD'], 'SG$': ['SGD'],
+    'A$': ['AUD'], 'AU$': ['AUD'], 'C$': ['CAD'], 'CA$': ['CAD'], 'NZ$': ['NZD'], 'MX$': ['MXN'],
+    'B$': ['BND'], 'R$': ['BRL'],
+    '¥': ['JPY', 'CNY'], '￥': ['JPY', 'CNY'], '円': ['JPY'], 'YEN': ['JPY'], 'JP¥': ['JPY'],
+    '元': ['CNY'], 'CN¥': ['CNY'], 'RMB': ['CNY'], '人民币': ['CNY'],
+    '€': ['EUR'], '£': ['GBP', 'EGP'], 'E£': ['EGP'],
+    '₩': ['KRW'], '원': ['KRW'], 'WON': ['KRW'],
+    '฿': ['THB'], 'BAHT': ['THB'], '₫': ['VND'], 'DONG': ['VND'],
+    '₱': ['PHP'], 'RP': ['IDR'], 'RM': ['MYR'],
+    '₹': ['INR'], 'RS': ['INR', 'PKR'], '₨': ['PKR', 'INR'],
+    '₽': ['RUB'], '₺': ['TRY'], 'TL': ['TRY'], '₪': ['ILS'],
+    'KR': ['SEK', 'NOK', 'DKK'], 'KČ': ['CZK'], 'ZŁ': ['PLN'], 'FT': ['HUF'],
+    'R': ['ZAR'], 'FR': ['CHF'], 'SFR': ['CHF'],
+    'DH': ['AED'], 'د.إ': ['AED'], '﷼': ['SAR', 'QAR'], 'SR': ['SAR'], 'QR': ['QAR'],
+    'KD': ['KWD'], 'BD': ['BHD'], 'JD': ['JOD'],
+    '৳': ['BDT'], 'TK': ['BDT'], '₮': ['MNT'], '₸': ['KZT']
+};
+
+// 소수점 없이 쓰는 통화 ("15.000" = 15000 으로 해석)
+const ZERO_DECIMAL_CURRENCIES = ['KRW', 'JPY', 'VND', 'IDR', 'HUF', 'MNT', 'KZT', 'PKR', 'BDT'];
+
+// AI 가 돌려준 통화 표기(기호 또는 코드)를 앱이 지원하는 ISO 코드로 변환. 못 찾으면 null.
+// 여러 통화가 같은 기호를 쓰면 (예: $, ¥) 현재 선택된 통화 → 타임존 감지 통화 → 기본값 순으로 고른다.
+function resolveCurrencyCode(raw) {
+    if (raw === null || raw === undefined) return null;
+    const text = String(raw).trim();
+    if (!text) return null;
+    const upper = text.toUpperCase().replace(/\s+/g, '');
+    const has = code => !!state.exchangeRates[code];
+
+    if (/^[A-Z]{3}$/.test(upper) && has(upper)) return upper;
+
+    const candidates = CURRENCY_SYMBOL_CANDIDATES[upper]
+        || CURRENCY_SYMBOL_CANDIDATES[upper.replace(/\.+$/, '')]
+        || CURRENCY_SYMBOL_CANDIDATES[text];
+
+    if (candidates) {
+        const available = candidates.filter(has);
+        if (available.length > 0) {
+            for (const hint of [state.selectedCurrency, state.localCurrency]) {
+                if (hint && available.includes(hint)) return hint;
+            }
+            return available[0];
+        }
+    }
+
+    // "USD $", "$ (HKD)" 처럼 코드가 섞여 있는 경우
+    const codeMatch = upper.match(/[A-Z]{3}/g);
+    if (codeMatch) {
+        const found = codeMatch.find(has);
+        if (found) return found;
+    }
+    return null;
+}
+
+// 숫자 또는 "1,234.50" / "1.234,50" / "12,50" / "15.000" 같은 문자열을 숫자로 변환. 실패 시 null.
+function parseAmount(value, currencyCode) {
+    if (typeof value === 'number') return (isFinite(value) && value > 0) ? value : null;
+    if (typeof value !== 'string') return null;
+
+    let s = value.replace(/[^\d.,]/g, '');
+    if (!s) return null;
+
+    const lastDot = s.lastIndexOf('.');
+    const lastComma = s.lastIndexOf(',');
+
+    if (lastDot !== -1 && lastComma !== -1) {
+        // 둘 다 있으면 뒤에 오는 기호가 소수점
+        const decimalSep = lastDot > lastComma ? '.' : ',';
+        const thousandSep = decimalSep === '.' ? ',' : '.';
+        s = s.split(thousandSep).join('').replace(decimalSep, '.');
+    } else if (lastComma !== -1) {
+        const parts = s.split(',');
+        s = (parts.length === 2 && parts[1].length !== 3) ? parts[0] + '.' + parts[1] : parts.join('');
+    } else if (lastDot !== -1) {
+        const parts = s.split('.');
+        const zeroDecimal = ZERO_DECIMAL_CURRENCIES.includes(currencyCode);
+        if (parts.length > 2 || (zeroDecimal && parts[1].length === 3)) s = parts.join('');
+    }
+
+    const num = parseFloat(s);
+    return (isFinite(num) && num > 0) ? num : null;
+}
+
+// 계산기 입력칸 형식 (천단위 콤마, 소수 2자리까지)
+function formatAmountForInput(num) {
+    return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// 인식 결과를 계산기에 적용 (통화 전환 후 금액 입력)
+function applyScannedAmount(code, amount) {
+    if (code && code !== state.selectedCurrency && state.exchangeRates[code]) {
+        state.searchMode = 'source'; // 입력(현지) 통화만 바꾼다
+        selectCurrency(code);
+
+        elements.selectedCurrencyText.style.color = '#38dec8';
+        setTimeout(() => elements.selectedCurrencyText.style.color = '', 800);
+    }
+    setInput(formatAmountForInput(amount));
+
+    elements.localAmount.style.backgroundColor = '#e8f5e9';
+    setTimeout(() => elements.localAmount.style.backgroundColor = '', 500);
 }
 
 // ===================================
@@ -2927,7 +3038,7 @@ function preprocessImage(imageFile) {
 // ===================================
 
 function openReceiptModal() {
-    if (elements.receiptModal) elements.receiptModal.style.display = 'flex';
+    if (elements.receiptModal) elements.receiptModal.style.display = 'block';
     resetReceiptModal();
 }
 
@@ -2948,8 +3059,6 @@ function resetReceiptModal() {
 }
 
 // ===================================
-
-// ===================================
 // AI Logic (Dual Mode)
 // ===================================
 
@@ -2965,68 +3074,26 @@ async function scanPriceTag(file) {
     elements.cameraBtn.disabled = true;
 
     try {
-        const base64Image = await preprocessImage(file);
-
-        // Call Gemini with 'price_tag' mode
+        const base64Image = await prepareImageForAI(file);
         const result = await callGeminiOCR(base64Image, 'price_tag');
 
-        if (result.success && result.data) {
-            const data = result.data;
-
-            // 1. Auto-set Currency
-            if (data.currency) {
-                let detectedCode = data.currency.trim().toUpperCase();
-
-                // Debug log
-                console.log(`[DEBUG] AI Raw: ${data.currency} / Codes: ${detectedCode}`);
-
-                // Symbol to Code Mapping (All Keys UPPERCASE)
-                const symbolMap = {
-                    '$': 'USD', 'US$': 'USD', 'USD': 'USD',
-                    '€': 'EUR', 'EUR': 'EUR',
-                    '£': 'GBP', 'GBP': 'GBP',
-                    '¥': 'JPY', 'JPY': 'JPY', 'YEN': 'JPY',
-                    '元': 'CNY', 'CNY': 'CNY', 'RMB': 'CNY', 'CN¥': 'CNY',
-                    '₩': 'KRW', 'KRW': 'KRW', 'WON': 'KRW',
-                    '฿': 'THB', 'THB': 'THB', 'BAHT': 'THB',
-                    '₫': 'VND', 'VND': 'VND', 'DONG': 'VND',
-                    '₱': 'PHP', 'PHP': 'PHP',
-                    'RP': 'IDR', 'IDR': 'IDR',
-                    'RS': 'INR', 'INR': 'INR', '₹': 'INR'
-                };
-
-                if (symbolMap[detectedCode]) {
-                    detectedCode = symbolMap[detectedCode];
-                }
-
-                // Find matching currency in our list
-                const mapped = state.currencyList.find(c => c.code === detectedCode);
-
-                if (mapped && detectedCode !== state.selectedCurrency) {
-                    console.log(`Currency switched: ${state.selectedCurrency} -> ${detectedCode}`);
-                    selectCurrency(detectedCode);
-
-                    // Visual feedback
-                    elements.selectedCurrencyText.style.color = '#38dec8';
-                    setTimeout(() => elements.selectedCurrencyText.style.color = '', 800);
-                } else if (!mapped) {
-                    console.warn(`Detected currency '${data.currency}' (mapped: ${detectedCode}) not supported.`);
-                }
-            }
-
-            // 2. Auto-set Amount
-            if (data.total) {
-                setInput(data.total);
-
-                // Visual Feedback
-                elements.localAmount.style.backgroundColor = '#e8f5e9'; // Light Green
-                setTimeout(() => elements.localAmount.style.backgroundColor = '', 500);
-            } else {
-                alert("가격 정보를 찾을 수 없습니다.");
-            }
-        } else {
+        if (!result.success || !result.data) {
             console.error("OCR Failed:", result);
-            throw new Error(result.error + (result.details ? "\nDetails:\n" + result.details : ""));
+            throw new Error((result.error || '분석 실패') + (result.details ? "\nDetails:\n" + result.details : ""));
+        }
+
+        const data = result.data;
+        const code = resolveCurrencyCode(data.currency);
+        console.log(`[OCR] currency raw=${data.currency} → ${code}, total raw=${data.total}`);
+        if (data.currency && !code) {
+            console.warn(`Detected currency '${data.currency}' not supported.`);
+        }
+
+        const amount = parseAmount(data.total, code || state.selectedCurrency);
+        if (amount) {
+            applyScannedAmount(code, amount);
+        } else {
+            alert("가격 정보를 찾을 수 없습니다.");
         }
     } catch (e) {
         alert("오류: " + e.message);
@@ -3038,65 +3105,85 @@ async function scanPriceTag(file) {
 }
 
 // Mode 2: Detailed Receipt Scan (Modal)
-async function scanReceipt(file) {
+async function scanReceipt(file, inputEl) {
     if (elements.receiptResult) elements.receiptResult.style.display = 'block';
     if (elements.receiptStatus) elements.receiptStatus.textContent = "AI가 영수증을 상세 분석 중입니다... (약 5-7초)";
     if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
     if (elements.saveReceiptBtn) elements.saveReceiptBtn.style.display = 'none';
 
     try {
-        const base64Image = await preprocessImage(file);
+        const base64Image = await prepareImageForAI(file);
         const result = await callGeminiOCR(base64Image, 'receipt');
 
-        if (result.success && result.data) {
-            const data = result.data;
-            if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
+        if (!result.success || !result.data) {
+            throw new Error((result.error || '분석 실패') + (result.details ? "\n" + result.details : ""));
+        }
 
-            // Symbol Mapping for Receipt
-            let displayCurrency = data.currency;
-            if (displayCurrency) {
-                const upCurrency = displayCurrency.toUpperCase();
-                const symbolMap = {
-                    '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '元': 'CNY', 'CN¥': 'CNY',
-                    '₩': 'KRW', '฿': 'THB', '₫': 'VND', '₱': 'PHP', 'RP': 'IDR', 'Rp': 'IDR', '₹': 'INR'
-                };
-                if (symbolMap[displayCurrency]) displayCurrency = symbolMap[displayCurrency];
-                else if (symbolMap[upCurrency]) displayCurrency = symbolMap[upCurrency];
+        const data = result.data;
+        const code = resolveCurrencyCode(data.currency);
+        const total = parseAmount(data.total, code);
+        const currencyLabel = code || data.currency || '';
+
+        if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
+
+        let html = `<strong>📅 날짜:</strong> ${escapeHtml(data.date || '미상')}<br>`;
+        html += `<strong>🏪 상호:</strong> ${escapeHtml(data.store || '미상')}<br>`;
+        html += `<strong>💰 총액:</strong> ${escapeHtml(total !== null ? formatAmountForInput(total) : (data.total ?? '미상'))} ${escapeHtml(currencyLabel)}<br>`;
+
+        // 원화(또는 내 화폐) 환산
+        if (code && total && state.exchangeRates[code]) {
+            const home = (state.homeCurrency && state.exchangeRates[state.homeCurrency]) ? state.homeCurrency : 'KRW';
+            if (home !== code) {
+                const converted = total * state.exchangeRates[code].rate / state.exchangeRates[home].rate;
+                const decimals = ZERO_DECIMAL_CURRENCIES.includes(home) ? 0 : 2;
+                html += `<strong>💱 환산:</strong> 약 ${escapeHtml(getCurrencySymbol(home))}${escapeHtml(formatNumber(converted, decimals))} (${escapeHtml(home)})<br>`;
             }
+        }
 
-            let html = `<strong>📅 날짜:</strong> ${data.date || '미상'}<br>`;
-            html += `<strong>🏪 상호:</strong> ${data.store || '미상'}<br>`;
-            html += `<strong>💰 총액:</strong> ${data.total} ${displayCurrency}<br>`;
-            html += `<strong>💳 결제:</strong> ${data.paymentMethod || '미상'}<br>`;
-            html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
+        html += `<strong>💳 결제:</strong> ${escapeHtml(data.paymentMethod || '미상')}<br>`;
+        html += `<hr><strong>📝 품목 (한국어 번역됨):</strong><br>`;
 
-            if (data.items && data.items.length > 0) {
-                data.items.forEach(item => {
-                    html += `- ${item.name}: ${item.price}<br>`;
-                });
-            } else {
-                html += `(세부 품목 없음)<br>`;
-            }
-
-            if (elements.receiptPreview) elements.receiptPreview.innerHTML = html;
-
-            if (elements.saveReceiptBtn) {
-                elements.saveReceiptBtn.style.display = 'block';
-                const newBtn = elements.saveReceiptBtn.cloneNode(true);
-                elements.saveReceiptBtn.parentNode.replaceChild(newBtn, elements.saveReceiptBtn);
-                elements.saveReceiptBtn = newBtn;
-                elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
-                elements.saveReceiptBtn.disabled = false;
-                elements.saveReceiptBtn.onclick = () => saveReceiptToSheet({ ...data, currency: displayCurrency });
-            }
-
+        if (Array.isArray(data.items) && data.items.length > 0) {
+            data.items.forEach(item => {
+                html += `- ${escapeHtml(item && item.name)}: ${escapeHtml(item && item.price)}<br>`;
+            });
         } else {
-            throw new Error(result.error);
+            html += `(세부 품목 없음)<br>`;
+        }
+
+        if (elements.receiptPreview) {
+            elements.receiptPreview.innerHTML = html;
+
+            if (code && total) {
+                const applyBtn = document.createElement('button');
+                applyBtn.type = 'button';
+                applyBtn.className = 'action-btn btn-primary receipt-apply-btn';
+                applyBtn.textContent = '🧮 계산기에 적용';
+                applyBtn.onclick = () => {
+                    applyScannedAmount(code, total);
+                    closeReceiptModal();
+                };
+                elements.receiptPreview.appendChild(applyBtn);
+            }
+        }
+
+        if (elements.saveReceiptBtn && authState.isLoggedIn) {
+            const newBtn = elements.saveReceiptBtn.cloneNode(true);
+            elements.saveReceiptBtn.parentNode.replaceChild(newBtn, elements.saveReceiptBtn);
+            elements.saveReceiptBtn = newBtn;
+            elements.saveReceiptBtn.style.display = 'block';
+            elements.saveReceiptBtn.textContent = '💾 가계부에 저장';
+            elements.saveReceiptBtn.disabled = false;
+            elements.saveReceiptBtn.onclick = () => saveReceiptToSheet({
+                ...data,
+                total: total !== null ? total : data.total,
+                currency: currencyLabel
+            });
         }
     } catch (e) {
         if (elements.receiptStatus) elements.receiptStatus.textContent = "❌ 오류: " + e.message;
     } finally {
-        if (elements.receiptInput) elements.receiptInput.value = '';
+        if (inputEl) inputEl.value = '';
     }
 }
 
@@ -3174,36 +3261,26 @@ function setInput(val) {
 
 // initOCRListeners - Robust Event Binding
 function initOCRListeners() {
-    console.log("Initializing OCR Listeners (Robust)...");
-
     // 1. Fast Price Tag Scan
     if (elements.cameraBtn && elements.cameraInput) {
         elements.cameraBtn.onclick = () => elements.cameraInput.click();
         elements.cameraInput.onchange = (e) => {
             const file = e.target.files[0];
             if (file) scanPriceTag(file);
-        }
-    }
-
-    // 2. Receipt Manager Modal - Direct Binding
-    const receiptBtn = document.getElementById('receiptManagerBtn');
-    if (receiptBtn) {
-        receiptBtn.onclick = (e) => {
-            e.preventDefault();
-            console.log("Receipt Manager Clicked");
-            openReceiptModal();
         };
-    } else {
-        console.warn("Receipt Manager Button not found during init!");
     }
 
-    if (elements.receiptCameraBtn && elements.receiptInput) {
-        elements.receiptCameraBtn.onclick = () => elements.receiptInput.click();
-        elements.receiptInput.onchange = (e) => {
+    // 2. Receipt Modal: 촬영 / 업로드
+    const bindReceiptInput = (btn, input) => {
+        if (!btn || !input) return;
+        btn.onclick = () => input.click();
+        input.onchange = (e) => {
             const file = e.target.files[0];
-            if (file) scanReceipt(file);
-        }
-    }
+            if (file) scanReceipt(file, input);
+        };
+    };
+    bindReceiptInput(elements.receiptCameraBtn, elements.receiptInput);
+    bindReceiptInput(elements.receiptUploadBtn, elements.receiptUploadInput);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

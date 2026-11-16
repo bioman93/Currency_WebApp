@@ -1067,6 +1067,38 @@ color: var(--text-tertiary);
     font-weight: 600;
 }
 
+.receipt-result {
+    margin-top: var(--spacing-md);
+}
+
+.receipt-status {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-sm);
+    white-space: pre-line;
+}
+
+.receipt-preview {
+    text-align: left;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    max-height: 50vh;
+    overflow-y: auto;
+    word-break: break-word;
+}
+
+.receipt-preview hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: var(--spacing-sm) 0;
+}
+
+.receipt-apply-btn,
+.receipt-save-btn {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+}
+
 .receipt-actions {
     display: flex;
     gap: 10px;
