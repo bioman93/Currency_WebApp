@@ -1301,49 +1301,70 @@ color: var(--text-tertiary);
 // ===================================
 
 const CONFIG = {
-    PROXIES: [
-        'https://api.codetabs.com/v1/proxy?quest=',
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url=',
-        'https://thingproxy.freeboard.io/fetch/'
+    // 환율 데이터 소스 (모두 CORS 허용 → 프록시 불필요). 앞에서부터 순서대로 시도.
+    RATE_SOURCES: [
+        { name: 'Global Standard API', url: 'https://open.er-api.com/v6/latest/KRW', type: 'erapi' },
+        { name: 'Currency API (jsDelivr)', url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/krw.min.json', type: 'fawaz' },
+        { name: 'Currency API (Cloudflare)', url: 'https://latest.currency-api.pages.dev/v1/currencies/krw.min.json', type: 'fawaz' }
     ],
-    TARGET_URL: 'https://open.er-api.com/v6/latest/KRW',
-    BACKUP_API: 'https://api.stock.naver.com/marketindex/exchanges',
     APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxHQoBuTpCGUVbsqsR7n7i8lGw5SS35eGg1ptJlmPkGI5oXwQ_fyk5sJcdVShct24kA/exec',
     UPDATE_INTERVAL: 0,
-    CACHE_KEY: 'exchange_rates_cache_v2'
+    CACHE_KEY: 'exchange_rates_cache_v3',
+    CACHE_MAX_AGE: 6 * 60 * 60 * 1000, // ms: 다음 업데이트 시각을 모를 때 캐시 유효 시간 (6시간)
+    FETCH_TIMEOUT: 5000,   // ms: 소스별 요청 타임아웃
+    ALERT_DELAY: 100       // ms: 모바일 blur 렌더링 후 alert 표시 지연
 };
 
-const FALLBACK_DATA = [
-    { "symbolCode": "USD", "name": "미국 USD", "stockExchangeType": { "nationCode": "USA", "nationName": "미국" }, "calcPrice": "1423.80", "closePrice": "1,423.80", "unit": "KRW" },
-    { "symbolCode": "EUR", "name": "유럽 EUR", "stockExchangeType": { "nationCode": "EU", "nationName": "유럽연합" }, "calcPrice": "1708.63", "closePrice": "1,708.63", "unit": "KRW" },
-    { "symbolCode": "JPY", "name": "일본 JPY (100엔)", "stockExchangeType": { "nationCode": "JPN", "nationName": "일본" }, "calcPrice": "933.24", "closePrice": "933.24", "unit": "KRW" },
-    { "symbolCode": "CNY", "name": "중국 CNY", "stockExchangeType": { "nationCode": "CHN", "nationName": "중국" }, "calcPrice": "205.21", "closePrice": "205.21", "unit": "KRW" },
-    { "symbolCode": "HKD", "name": "홍콩 HKD", "stockExchangeType": { "nationCode": "HKG", "nationName": "홍콩" }, "calcPrice": "182.50", "closePrice": "182.50", "unit": "KRW" },
-    { "symbolCode": "TWD", "name": "대만 TWD", "stockExchangeType": { "nationCode": "TWN", "nationName": "대만" }, "calcPrice": "44.80", "closePrice": "44.80", "unit": "KRW" },
-    { "symbolCode": "GBP", "name": "영국 GBP", "stockExchangeType": { "nationCode": "GBR", "nationName": "영국" }, "calcPrice": "1800.50", "closePrice": "1,800.50", "unit": "KRW" },
-    { "symbolCode": "CAD", "name": "캐나다 CAD", "stockExchangeType": { "nationCode": "CAN", "nationName": "캐나다" }, "calcPrice": "1050.20", "closePrice": "1,050.20", "unit": "KRW" },
-    { "symbolCode": "CHF", "name": "스위스 CHF", "stockExchangeType": { "nationCode": "CHE", "nationName": "스위스" }, "calcPrice": "1580.40", "closePrice": "1,580.40", "unit": "KRW" },
-    { "symbolCode": "AUD", "name": "호주 AUD", "stockExchangeType": { "nationCode": "AUS", "nationName": "호주" }, "calcPrice": "920.30", "closePrice": "920.30", "unit": "KRW" },
-    { "symbolCode": "SGD", "name": "싱가포르 SGD", "stockExchangeType": { "nationCode": "SGP", "nationName": "싱가포르" }, "calcPrice": "1050.80", "closePrice": "1,050.80", "unit": "KRW" },
-    { "symbolCode": "THB", "name": "태국 THB", "stockExchangeType": { "nationCode": "THA", "nationName": "태국" }, "calcPrice": "41.50", "closePrice": "41.50", "unit": "KRW" },
-    { "symbolCode": "IDR", "name": "인도네시아 IDR 100", "stockExchangeType": { "nationCode": "IDN", "nationName": "인도네시아" }, "calcPrice": "9.00", "closePrice": "9.00", "unit": "KRW" },
-    { "symbolCode": "VND", "name": "베트남 VND 100", "stockExchangeType": { "nationCode": "VNM", "nationName": "베트남" }, "calcPrice": "6.00", "closePrice": "6.00", "unit": "KRW" },
-    { "symbolCode": "MYR", "name": "말레이시아 MYR", "stockExchangeType": { "nationCode": "MYS", "nationName": "말레이시아" }, "calcPrice": "318.50", "closePrice": "318.50", "unit": "KRW" },
-    { "symbolCode": "PHP", "name": "필리핀 PHP", "stockExchangeType": { "nationCode": "PHL", "nationName": "필리핀" }, "calcPrice": "25.20", "closePrice": "25.20", "unit": "KRW" },
-    { "symbolCode": "ZAR", "name": "남아공 ZAR", "stockExchangeType": { "nationCode": "ZAF", "nationName": "남아프리카공화국" }, "calcPrice": "78.50", "closePrice": "78.50", "unit": "KRW" },
-    { "symbolCode": "RUB", "name": "러시아 RUB", "stockExchangeType": { "nationCode": "RUS", "nationName": "러시아" }, "calcPrice": "15.20", "closePrice": "15.20", "unit": "KRW" },
-    { "symbolCode": "TRY", "name": "튀르키예 TRY", "stockExchangeType": { "nationCode": "TUR", "nationName": "튀르키예" }, "calcPrice": "40.50", "closePrice": "40.50", "unit": "KRW" },
-    { "symbolCode": "BRL", "name": "브라질 BRL", "stockExchangeType": { "nationCode": "BRA", "nationName": "브라질" }, "calcPrice": "245.20", "closePrice": "245.20", "unit": "KRW" },
-    { "symbolCode": "MXN", "name": "멕시코 MXN", "stockExchangeType": { "nationCode": "MEX", "nationName": "멕시코" }, "calcPrice": "72.10", "closePrice": "72.10", "unit": "KRW" },
-    { "symbolCode": "AED", "name": "UAE AED", "stockExchangeType": { "nationCode": "ARE", "nationName": "아랍에미리트" }, "calcPrice": "387.60", "closePrice": "387.60", "unit": "KRW" },
-    { "symbolCode": "INR", "name": "인도 INR", "stockExchangeType": { "nationCode": "IND", "nationName": "인도" }, "calcPrice": "16.80", "closePrice": "16.80", "unit": "KRW" },
-    { "symbolCode": "SAR", "name": "사우디 SAR", "stockExchangeType": { "nationCode": "SAU", "nationName": "사우디아라비아" }, "calcPrice": "379.50", "closePrice": "379.50", "unit": "KRW" },
-    { "symbolCode": "NZD", "name": "뉴질랜드 NZD", "stockExchangeType": { "nationCode": "NZL", "nationName": "뉴질랜드" }, "calcPrice": "850.20", "closePrice": "850.20", "unit": "KRW" },
-    { "symbolCode": "CZK", "name": "체코 CZK", "stockExchangeType": { "nationCode": "CZE", "nationName": "체코" }, "calcPrice": "60.50", "closePrice": "60.50", "unit": "KRW" },
-    { "symbolCode": "PLN", "name": "폴란드 PLN", "stockExchangeType": { "nationCode": "POL", "nationName": "폴란드" }, "calcPrice": "355.40", "closePrice": "355.40", "unit": "KRW" },
-    { "symbolCode": "HUF", "name": "헝가리 HUF", "stockExchangeType": { "nationCode": "HUN", "nationName": "헝가리" }, "calcPrice": "3.80", "closePrice": "3.80", "unit": "KRW" }
-];
+// 오프라인 기본 환율 (네트워크가 전혀 안 될 때만 사용)
+// 형식: 1 KRW = rates[code] 외화. 2026-11-16 기준 ExchangeRate-API 값.
+const FALLBACK_DATA = {
+    "result": "success",
+    "date": "2026-11-16",
+    "rates": {
+        "USD": 0.000749,
+        "EUR": 0.000678,
+        "JPY": 0.119563,
+        "CNY": 0.005002,
+        "HKD": 0.005868,
+        "TWD": 0.024642,
+        "GBP": 0.000566,
+        "CAD": 0.001067,
+        "CHF": 0.000627,
+        "SEK": 0.007525,
+        "AUD": 0.001104,
+        "NZD": 0.001354,
+        "CZK": 0.016525,
+        "TRY": 0.037661,
+        "MXN": 0.013872,
+        "PLN": 0.002986,
+        "AED": 0.00275,
+        "SGD": 0.000963,
+        "THB": 0.025356,
+        "MYR": 0.003057,
+        "IDR": 13.640508,
+        "VND": 19.23468,
+        "PHP": 0.047882,
+        "RUB": 0.061754,
+        "ZAR": 0.012667,
+        "BRL": 0.004237,
+        "INR": 0.070668,
+        "SAR": 0.002808,
+        "KWD": 0.000231,
+        "BHD": 0.000282,
+        "QAR": 0.002725,
+        "EGP": 0.039968,
+        "HUF": 0.247492,
+        "DKK": 0.00506,
+        "NOK": 0.007152,
+        "ILS": 0.002404,
+        "JOD": 0.000531,
+        "PKR": 0.207113,
+        "BDT": 0.09348,
+        "MNT": 2.70014,
+        "KZT": 0.333257,
+        "BND": 0.000964
+    }
+};
 
 const CURRENCY_NAMES = {
     'KRW': { name: '대한민국 원', nation: '한국' },
@@ -1618,192 +1639,152 @@ function mapLocaleToCurrency(locale) {
 // Main Logic
 // ===================================
 
+async function fetchJsonWithTimeout(url) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.FETCH_TIMEOUT);
+    try {
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+// 소스별 응답을 공통 형식 { result: 'success', rates: { USD: 0.00068, ... } } 으로 변환
+function normalizeRates(raw, type) {
+    if (type === 'erapi') {
+        if (raw && raw.result === 'success' && raw.rates) return raw;
+    } else if (type === 'fawaz') {
+        if (raw && raw.krw) {
+            const rates = {};
+            Object.keys(raw.krw).forEach(k => {
+                if (/^[a-z]{3}$/.test(k) && raw.krw[k] > 0) rates[k.toUpperCase()] = raw.krw[k];
+            });
+            return { result: 'success', rates: rates, date: raw.date };
+        }
+    }
+    throw new Error('Invalid data');
+}
+
+function readRateCache() {
+    try {
+        const cached = localStorage.getItem(CONFIG.CACHE_KEY);
+        if (!cached) return null;
+        const parsed = JSON.parse(cached);
+        if (!parsed || !parsed.data || !parsed.data.rates) throw new Error('bad cache');
+        return parsed;
+    } catch (e) {
+        console.warn('Cache invalid', e);
+        try { localStorage.removeItem(CONFIG.CACHE_KEY); } catch (_) { /* ignore */ }
+        return null;
+    }
+}
+
+// 환율 데이터가 바뀐 뒤 통화 목록/표시를 갱신.
+// keepInput=true 이면 이미 선택된 통화를 유지하고 입력값을 지우지 않는다 (백그라운드 갱신용).
+function refreshCurrencyUI(keepInput) {
+    if (state.currencyList.length === 0) return;
+    renderCurrencyOptions(state.currencyList);
+
+    // Security: Ensure we are in source mode for auto-updates so we don't clobber Target
+    state.searchMode = 'source';
+
+    if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
+        selectCurrency(state.lastDetectedCode);
+        state.lastDetectedCode = null; // Consume
+    } else if (!state.exchangeRates[state.selectedCurrency]) {
+        selectCurrency('USD');
+    } else if (keepInput) {
+        calculate();
+    } else {
+        selectCurrency(state.selectedCurrency);
+    }
+}
+
 async function fetchExchangeRates(forceUpdate = false) {
+    const cache = readRateCache();
+    const now = Date.now();
+    let cacheShown = false;
+
     // 1. Smart Cache Check
-    const cached = localStorage.getItem(CONFIG.CACHE_KEY);
-    let nextUpdateUnix = 0;
-
-    if (cached) {
-        try {
-            const { data, timestamp, source, nextUpdate } = JSON.parse(cached);
-
-            // "If data to bring is same... don't bring."
-            // Check nextUpdate time if available
-            const now = new Date().getTime();
-            if (nextUpdate && now < nextUpdate) {
-                // Data is still valid according to API promise
-                if (forceUpdate) {
-                    // Force blur before alert to remove button state on mobile
-                    if (document.activeElement) document.activeElement.blur();
-                    setTimeout(() => {
-                        alert('현재 데이터가 최신입니다.\n(다음 업데이트: ' + formatTime(new Date(nextUpdate)) + ')');
-                    }, 100); // Slight increase in delay to ensure blur renders
-                }
-                processData(data); // Use cached
-                state.lastUpdated = new Date(timestamp);
-                state.nextUpdate = nextUpdate; // Restore state
-                updateSourceInfo(source);
-                updateRateStatus(`최신 데이터 유지 중 (${source}): ${formatTime(state.lastUpdated)}`);
-
-                if (state.currencyList.length > 0) {
-                    renderCurrencyOptions(state.currencyList);
-
-                    // Security: Ensure we are in source mode for auto-updates
-                    state.searchMode = 'source';
-
-                    // Auto-select logic
-                    if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
-                        selectCurrency(state.lastDetectedCode);
-                        state.lastDetectedCode = null;
-                    } else if (!state.exchangeRates[state.selectedCurrency]) {
-                        selectCurrency('USD');
-                    } else {
-                        selectCurrency(state.selectedCurrency);
-                    }
-                }
-                return;
+    if (cache) {
+        const expiresAt = cache.nextUpdate || (cache.timestamp + CONFIG.CACHE_MAX_AGE);
+        if (now < expiresAt) {
+            // 아직 유효한 데이터 → 네트워크 요청 생략
+            if (forceUpdate) {
+                // Force blur before alert to remove button state on mobile
+                if (document.activeElement) document.activeElement.blur();
+                setTimeout(() => {
+                    alert('현재 데이터가 최신입니다.\n(다음 업데이트: ' + formatTime(new Date(expiresAt)) + ')');
+                }, CONFIG.ALERT_DELAY);
             }
+            processData(cache.data);
+            state.lastUpdated = new Date(cache.timestamp);
+            state.nextUpdate = expiresAt;
+            updateSourceInfo(cache.source);
+            updateRateStatus(`최신 데이터 유지 중 (${cache.source}): ${formatTime(state.lastUpdated)}`);
+            refreshCurrencyUI(false);
+            return;
+        }
 
-            // If cache exists but might be old, use it initially if !forceUpdate
-            if (!forceUpdate) {
-                processData(data);
-                state.lastUpdated = new Date(timestamp);
-                updateSourceInfo(source);
-                updateRateStatus(`저장된 데이터 (${source}): ${formatTime(state.lastUpdated)}`);
-                if (state.currencyList.length > 0) {
-                    renderCurrencyOptions(state.currencyList);
-                    // Auto-select logic
-                    if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
-                        selectCurrency(state.lastDetectedCode);
-                        state.lastDetectedCode = null;
-                    } else if (!state.exchangeRates[state.selectedCurrency]) {
-                        selectCurrency('USD');
-                    } else {
-                        selectCurrency(state.selectedCurrency);
-                    }
-                }
-                return;
-            }
-        } catch (e) {
-            console.warn('Cache invalid', e);
-            localStorage.removeItem(CONFIG.CACHE_KEY);
+        // 만료된 캐시: 일단 화면에 보여주고, 아래에서 최신 데이터를 받아온다
+        if (!forceUpdate) {
+            processData(cache.data);
+            state.lastUpdated = new Date(cache.timestamp);
+            updateSourceInfo(cache.source);
+            updateRateStatus(`저장된 데이터 (${cache.source}): ${formatTime(state.lastUpdated)} · 최신 환율 확인 중...`);
+            refreshCurrencyUI(false);
+            cacheShown = true;
         }
     }
 
-    updateRateStatus('환율 정보 연결 중...');
-    let success = false;
-    let fetchedData = null;
+    if (!cacheShown) updateRateStatus('환율 정보 연결 중...');
 
-    // Check if we are running in file:// mode
-    const isLocalFile = window.location.protocol === 'file:';
-
-    // 2. Try Proxies
-    for (const proxy of CONFIG.PROXIES) {
+    // 2. Try sources in order
+    let fetched = null;
+    for (const source of CONFIG.RATE_SOURCES) {
         try {
-            const url = proxy + encodeURIComponent(CONFIG.TARGET_URL);
-            // Add timeout signal to fail fast
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout per proxy
-
-            const response = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            let ratesData;
-            // Handle different proxy response formats
-            if (proxy.includes('allorigins') || proxy.includes('thingproxy')) {
-                // Some proxies might return wrapped JSON or just raw. 
-                // Thingproxy returns raw usually. Allorigins with 'raw' returns raw.
-                // We kept 'raw' param in config for allorigins.
-                ratesData = await response.json();
-                // If wrapped in contents (standard allorigins without raw), handle it.
-                if (ratesData.contents) ratesData = JSON.parse(ratesData.contents);
-            } else {
-                ratesData = await response.json();
-            }
-
-            if (!ratesData || (!Array.isArray(ratesData) && !ratesData.rates && ratesData.result !== 'success')) throw new Error('Invalid data');
-
-            fetchedData = ratesData;
-            processData(ratesData); // Changed from processExchangeData
-            success = true;
+            const raw = await fetchJsonWithTimeout(source.url);
+            fetched = { data: normalizeRates(raw, source.type), raw: raw, source: source.name };
             break;
         } catch (e) {
-            console.warn(`Proxy ${proxy} failed:`, e);
+            console.warn(`Rate source ${source.name} failed:`, e);
         }
     }
 
-    // 3. Backup API (Naver)
-    if (!success) {
-        try {
-            const res = await fetch(CONFIG.BACKUP_API);
-            if (res.ok) {
-                const data = await res.json();
-                fetchedData = data; // Store for caching
-                processData(data); // Changed from processBackupData
-                state.lastUpdated = new Date();
-                // updateRateStatus(`업데이트 (Naver/Hana Bank): ${formatTime(state.lastUpdated)}`); // This will be handled by the common caching block
-                success = true;
-            }
-        } catch (e) {
-            console.warn('Backup failed:', e);
-        }
-    }
-
-    // 4. Fallback (Offline hardcoded)
-    if (!success) {
-        processData(FALLBACK_DATA); // Changed from processExchangeData
-        updateRateStatus('오프라인 모드 (기본값 사용)');
-    } else if (fetchedData) {
+    if (fetched) {
+        processData(fetched.data);
         state.lastUpdated = new Date();
-
-        let finalSource = 'Unknown';
-        let nextUpdate = 0;
-
-        // determine source type
-        if (Array.isArray(fetchedData)) {
-            finalSource = 'Naver/Hana Bank';
-            // Naver doesn't give next update, assume 1 hour? Or just 0.
-        } else if (fetchedData.result === 'success' || fetchedData.rates) {
-            finalSource = 'Global Standard API';
-            if (fetchedData.time_next_update_unix) {
-                nextUpdate = fetchedData.time_next_update_unix * 1000;
-            }
-        }
-
-        updateSourceInfo(finalSource);
-        updateRateStatus(`업데이트 (${finalSource}): ${formatTime(state.lastUpdated)}`);
+        const nextUpdate = fetched.raw.time_next_update_unix ? fetched.raw.time_next_update_unix * 1000 : 0;
+        state.nextUpdate = nextUpdate;
+        updateSourceInfo(fetched.source);
+        updateRateStatus(`업데이트 (${fetched.source}): ${formatTime(state.lastUpdated)}`);
 
         try {
-            const cachePayload = {
-                data: fetchedData,
+            localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({
+                data: fetched.data,
                 timestamp: state.lastUpdated.getTime(),
-                source: finalSource,
+                source: fetched.source,
                 nextUpdate: nextUpdate
-            };
-            localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(cachePayload));
+            }));
         } catch (e) {
             console.warn('Cache write failed', e);
         }
+    } else if (cache) {
+        // 3. 네트워크 실패 → 마지막으로 받은 데이터 유지
+        processData(cache.data);
+        state.lastUpdated = new Date(cache.timestamp);
+        updateSourceInfo(cache.source);
+        updateRateStatus(`오프라인 · 저장된 데이터 (${cache.source}): ${formatTime(state.lastUpdated)}`);
+    } else {
+        // 4. Fallback (Offline hardcoded)
+        processData(FALLBACK_DATA);
+        updateSourceInfo('Global Standard API');
+        updateRateStatus(`오프라인 모드 (기본값: ${FALLBACK_DATA.date} 기준)`);
     }
 
-    if (state.currencyList.length > 0) {
-        renderCurrencyOptions(state.currencyList);
-
-        // Security: Ensure we are in source mode for auto-updates so we don't clobber Target
-        state.searchMode = 'source';
-
-        // Auto-select if pending detection exists (e.g. init race condition)
-        if (state.lastDetectedCode && state.exchangeRates[state.lastDetectedCode]) {
-            selectCurrency(state.lastDetectedCode);
-            state.lastDetectedCode = null; // Consume
-        } else if (!state.exchangeRates[state.selectedCurrency]) {
-            selectCurrency('USD');
-        } else {
-            selectCurrency(state.selectedCurrency);
-        }
-    }
+    refreshCurrencyUI(cacheShown);
 }
 
 function processBackupData(data) {
@@ -1879,8 +1860,8 @@ function addKrwToState() {
 function updateSourceInfo(sourceName) {
     const footer = document.getElementById('sourceInfo');
     if (footer) {
-        if (sourceName.includes('Naver')) {
-            footer.innerHTML = '환율 정보: 하나은행 (Naver)';
+        if (sourceName && sourceName.includes('Currency API')) {
+            footer.innerHTML = '환율 정보: ' + sourceName;
         } else {
             footer.innerHTML = '환율 정보: Global Standard API (ExchangeRate-API)';
         }
