@@ -1,7 +1,7 @@
 # 프로젝트 백서: 스마트 여행 환율 계산기
 
-> **버전**: 1.0.0
-> **날짜**: 2026-02-05
+> **버전**: 1.6 (앱 정보 기준, `app.js`의 `APP_INFO`)
+> **날짜**: 2026-02-05 (최종 갱신 2026-11-17)
 > **작성자**: Antigravity (AI Agent) & User (Lead Developer)
 
 ---
@@ -16,7 +16,7 @@
 2.  **스마트 국적 감지**: 위치/언어 기반으로 자국 화폐를 자동 감지하되, 사용자 수동 설정을 최우선으로 존중.
 3.  **역방향 환율 (외국인 모드)**: '현지 화폐(KRW)'를 입력하면 자동으로 '자국 화폐(Target)'로 변환된 결과를 표시.
 4.  **가격표 스캔 (모바일 전용)**: 정규식 기반의 고속 OCR로 즉각적인 가격 확인 지원.
-5.  **영수증 관리자 (로그인 필요)**: AI(Gemini)를 활용한 상세 영수증 스캔 및 Google Sheets 연동 저장.
+5.  **영수증 관리자 (로그인 필요)**: AI(맥북 로컬 LLM 우선, Gemini 보조)를 활용한 상세 영수증 스캔 및 Google Sheets 연동 저장.
 6.  **이중 인터페이스 디자인**:
     -   **일반 계산기**: 빠른 계산용.
     -   **영수증 관리**: 지출 내역 관리용.
@@ -33,7 +33,7 @@
 
 ### 2.2 백엔드 (Serverless)
 -   **Platform**: Google Apps Script (GAS).
--   **AI Engine**: Google Gemini 2.5 Flash (GAS 내부 REST API 호출).
+-   **AI Engine**: 맥북 로컬 Ollama(`qwen3.8:27b`)를 먼저 시도하고, 실패하면 Google Gemini 2.5 Flash(GAS 내부 REST API 호출)로 넘어갑니다. 자세한 내용은 `docs/OLLAMA_INTEGRATION.md`를 참고합니다.
 -   **Database**: Google Sheets (영수증 데이터 저장소).
 
 ### 2.3 데이터 흐름
@@ -43,7 +43,9 @@
     -   오프라인 폴백: 하드코딩된 기본 데이터 사용.
 2.  **OCR**:
     -   클라이언트 OCR: `Tesseract.js` (초기 계획) -> 속도를 위해 `정규식(Regex)` 패턴 매칭으로 변경.
-    -   서버 OCR: 이미지 -> Base64 -> GAS -> Gemini API -> JSON -> 클라이언트.
+    -   AI OCR (`callOCR`):
+        -   1순위: 이미지 -> Base64 -> (Tailscale HTTPS) 맥북 Ollama -> JSON -> 클라이언트
+        -   폴백: 이미지 -> Base64 -> GAS -> Gemini API -> JSON -> 클라이언트
 
 ---
 

@@ -22,6 +22,20 @@ const CONFIG = {
     ALERT_DELAY: 100       // ms: 모바일 blur 렌더링 후 alert 표시 지연
 };
 
+// 앱 정보 — 기능을 바꾸면 버전·날짜·기능 목록을 함께 갱신한다 (메뉴 > 앱 정보에 표시)
+const APP_INFO = {
+    NAME: '환율 계산기',
+    VERSION: '1.6',
+    UPDATED: '2026-11-17',
+    FEATURES: [
+        '실시간 환율 (여러 소스 자동 전환, 오프라인 기본값)',
+        '가격표·영수증 AI 판독 (맥북 로컬 AI 우선, Gemini 보조)',
+        '영수증 가계부 저장 (Google 로그인)',
+        '자동 위치 감지'
+    ],
+    CREDIT: 'Developed by Antigravity'
+};
+
 // 오프라인 기본 환율 (네트워크가 전혀 안 될 때만 사용)
 // 형식: 1 KRW = rates[code] 외화. 2026-11-16 기준 ExchangeRate-API 값.
 const FALLBACK_DATA = {
@@ -287,6 +301,29 @@ function updateMenuState(isLoggedIn, user = null) {
             elements.cameraLockedMsg.style.display = 'block';
         }
     }
+}
+
+// 메뉴 열기. 로그아웃 상태면 Google 로그인 버튼이 제대로 그려져 있는지 확인한다
+function openMainMenu() {
+    if (!elements.mainMenuDropdown) return;
+    elements.mainMenuDropdown.style.display = 'block';
+    if (!authState.isLoggedIn) ensureLoginButton();
+}
+
+// Google 로그인 버튼 보장.
+// 첫 실행에 One Tap 로그인 창을 닫으면 Google이 한동안 그 창을 다시 띄우지 않는다.
+// 그래서 메뉴의 로그인 버튼이 유일한 재로그인 경로다. 이 버튼은 숨겨진 상태(display:none)에서
+// 그려지면 크기가 0이 될 수 있으므로, 보이는 상태에서 버튼이 없거나 크기가 0이면 다시 그린다.
+function ensureLoginButton() {
+    const container = document.querySelector('#menuItemLogin .g_id_signin');
+    if (!container || !(window.google && google.accounts && google.accounts.id)) return;
+    const button = container.querySelector('[role="button"]');
+    if (button && button.offsetWidth > 0) return;
+    container.innerHTML = '';
+    google.accounts.id.renderButton(container, {
+        type: 'standard', shape: 'rectangular', theme: 'outline',
+        text: 'signin_with', size: 'large', logo_alignment: 'left'
+    });
 }
 
 function signOut() {
@@ -1145,7 +1182,8 @@ function initEventListeners() {
         elements.mainMenuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isVisible = elements.mainMenuDropdown.style.display === 'block';
-            elements.mainMenuDropdown.style.display = isVisible ? 'none' : 'block';
+            if (isVisible) elements.mainMenuDropdown.style.display = 'none';
+            else openMainMenu();
         });
     }
 
@@ -1168,7 +1206,9 @@ function initEventListeners() {
 
     if (elements.menuItemAppInfo) {
         elements.menuItemAppInfo.addEventListener('click', () => {
-            alert('💱 환율 계산기 v1.5\n\n- 실시간 환율 (Global Standard)\n- 영수증 AI 분석\n- 자동 위치 감지\n\nDeveloped by Antigravity');
+            alert(`💱 ${APP_INFO.NAME} v${APP_INFO.VERSION} (${APP_INFO.UPDATED})\n\n`
+                + APP_INFO.FEATURES.map(f => `- ${f}`).join('\n')
+                + `\n\n${APP_INFO.CREDIT}`);
             if (elements.mainMenuDropdown) elements.mainMenuDropdown.style.display = 'none';
         });
     }
@@ -1330,6 +1370,9 @@ function detectLocation(interactive = false) {
 
 function init() {
     initEventListeners();
+
+    // 시작 시 로그인 상태에 맞게 메뉴를 그린다 (로그아웃 상태면 로그인 메뉴 항목을 보여준다)
+    updateMenuState(authState.isLoggedIn, authState.user);
 
     // Load saved options first (restores selectedCurrency)
     loadOptions();
@@ -1706,7 +1749,7 @@ async function scanPriceTag(file) {
 
     try {
         const base64Image = await prepareImageForAI(file);
-        const result = await callGeminiOCR(base64Image, 'price_tag');
+        const result = await callOCR(base64Image, 'price_tag');
 
         if (!result.success || !result.data) {
             console.error("OCR Failed:", result);
@@ -1738,13 +1781,13 @@ async function scanPriceTag(file) {
 // Mode 2: Detailed Receipt Scan (Modal)
 async function scanReceipt(file, inputEl) {
     if (elements.receiptResult) elements.receiptResult.style.display = 'block';
-    if (elements.receiptStatus) elements.receiptStatus.textContent = "AI가 영수증을 상세 분석 중입니다... (약 5-7초)";
+    if (elements.receiptStatus) elements.receiptStatus.textContent = "AI가 영수증을 상세 분석 중입니다... (약 5-30초)";
     if (elements.receiptPreview) elements.receiptPreview.innerHTML = "";
     if (elements.saveReceiptBtn) elements.saveReceiptBtn.style.display = 'none';
 
     try {
         const base64Image = await prepareImageForAI(file);
-        const result = await callGeminiOCR(base64Image, 'receipt');
+        const result = await callOCR(base64Image, 'receipt');
 
         if (!result.success || !result.data) {
             throw new Error((result.error || '분석 실패') + (result.details ? "\n" + result.details : ""));
@@ -1755,7 +1798,7 @@ async function scanReceipt(file, inputEl) {
         const total = parseAmount(data.total, code);
         const currencyLabel = code || data.currency || '';
 
-        if (elements.receiptStatus) elements.receiptStatus.textContent = "✅ 분석 완료";
+        if (elements.receiptStatus) elements.receiptStatus.textContent = `✅ 분석 완료 (${describeOCREngine(result)})`;
 
         let html = `<strong>📅 날짜:</strong> ${escapeHtml(data.date || '미상')}<br>`;
         html += `<strong>🏪 상호:</strong> ${escapeHtml(data.store || '미상')}<br>`;
@@ -1816,6 +1859,27 @@ async function scanReceipt(file, inputEl) {
     } finally {
         if (inputEl) inputEl.value = '';
     }
+}
+
+// Helper: OCR 진입점 — 맥북 로컬 LLM을 먼저 시도하고, 실패하면 Gemini(Apps Script)로 넘어간다
+async function callOCR(base64Image, mode) {
+    if (typeof callLocalOCR === 'function' && typeof LOCAL_LLM !== 'undefined' && LOCAL_LLM.ENABLED) {
+        const started = Date.now();
+        try {
+            const result = await callLocalOCR(base64Image, mode);
+            console.log(`[OCR] 맥북 로컬 LLM 사용 (${((Date.now() - started) / 1000).toFixed(1)}초)`);
+            return result;
+        } catch (e) {
+            console.warn(`[OCR] 맥북 로컬 LLM 실패 → Gemini로 전환: ${e.message}`);
+        }
+    }
+    return callGeminiOCR(base64Image, mode);
+}
+
+// 판독에 쓴 엔진을 사람이 읽는 이름으로
+function describeOCREngine(result) {
+    return result && typeof result.usedModel === 'string' && result.usedModel.startsWith('local:')
+        ? '맥북 AI' : 'Gemini';
 }
 
 // Helper: Call Gemini Backend

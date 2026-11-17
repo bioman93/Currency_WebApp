@@ -1,83 +1,70 @@
 # Ollama 로컬 LLM 통합 가이드
 
-현재 네이버/구글 API를 경유하는 방식과 달리, 로컬 LLM(Ollama)을 사용할 때는 **브라우저(앱)가 직접 사용자의 PC에 설치된 Ollama 서버와 통신**하는 방식(Direct Connection)을 사용해야 합니다. 
-Googla Apps Script는 클라우드 서버이므로 사용자의 `localhost`에 접근할 수 없기 때문입니다.
+가격표·영수증 AI 판독은 **맥북의 Ollama를 먼저 쓰고, 안 되면 Gemini로 넘어갑니다.**
+판독 엔진은 `local-llm.js`가, 엔진 선택과 폴백은 `app.js`의 `callOCR`이 담당합니다.
 
-## 1. 아키텍처 변화
-- **기존**: 웹앱 -> Google Apps Script (최신 Gemini API 호출) -> 결과
-- **로컬**: 웹앱 -> 공유기/내부망 (http://192.168.x.x:11434) -> PC의 Ollama -> 결과
+## 1. 구조
 
-## 2. 필수 준비 사항 (서버 설정)
-Ollama는 기본적으로 외부(웹 브라우저 포함)에서의 접속을 차단하므로, 두 가지 설정이 필수입니다.
-
-### A. CORS 설정 (가장 중요)
-웹앱이 Ollama 서버에 접속할 수 있도록 허용해야 합니다.
-
-**Windows (PowerShell)**:
-```powershell
-[Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "*", "User")
-# 설정 후 Ollama 트레이 아이콘 우클릭 -> Quit 후 다시 실행
+```
+폰 앱 (https://bioman93.github.io/Currency_WebApp)
+  ├─ ① 맥북 시도: Tailscale 망 → https://macbookpro.tailfbbdb4.ts.net/ollama
+  │               → tailscale serve → Host 재작성 프록시(127.0.0.1:11435) → Ollama(127.0.0.1:11434)
+  └─ ② 실패 시:  Google Apps Script(backend/Code.gs) → Gemini 2.5 Flash
 ```
 
-**Mac/Linux**:
-```bash
-launchctl setenv OLLAMA_ORIGINS "*"
-# 또는
-export OLLAMA_ORIGINS="*"
-```
+- **브라우저가 맥북을 직접 호출합니다.** Apps Script는 구글 클라우드에서 돌기 때문에 Tailscale 망에 있는 맥북에 닿지 못합니다.
+- **HTTPS로 호출합니다.** 앱이 HTTPS 페이지라서 `http://` 주소를 부르면 브라우저가 차단합니다(혼합 콘텐츠). 그래서 Tailscale이 발급한 인증서로 HTTPS를 씁니다.
+- **같은 Wi-Fi(LAN)에는 열지 않습니다.** Ollama는 127.0.0.1에만 열려 있고, 외부 접근은 Tailscale 망 안으로 제한됩니다.
 
-### B. 멀티모달(Vision) 모델 설치
-일반 텍스트 모델(Gemma, Llama3)은 이미지를 볼 수 없습니다. 반드시 **Vision 기능이 있는 모델**을 받아야 합니다.
-- **추천**: `llama3.2-vision` (최신, 성능 좋음) 또는 `llava` (전통적인 Vision 모델)
+## 2. 동작 규칙 (`callOCR`)
 
-```bash
-ollama pull llama3.2-vision
-```
+1. **도달 확인** (`/api/version`, 3초 제한): 맥북이 꺼져 있거나 폰의 Tailscale이 꺼져 있으면 여기서 실패하고, 곧바로 Gemini로 넘어갑니다.
+2. **판독** (`/api/chat`, 90초 제한):
+   - 모델은 `qwen3.8:27b`(비전 지원)입니다.
+   - JSON 스키마로 출력 형식을 강제하고, thinking은 끄고, temperature는 0으로 둡니다.
+   - 프롬프트는 `backend/Code.gs`와 같은 문구라서 두 엔진의 결과 형식이 같습니다.
+3. **실패하면 Gemini로 넘어갑니다.** 어느 단계든 실패하면 기존 `callGeminiOCR`을 호출합니다. 콘솔에 `[OCR] 맥북 로컬 LLM 실패 → Gemini로 전환` 경고가 남습니다.
+4. **사용한 엔진을 표시합니다.** 영수증 결과 화면에 `✅ 분석 완료 (맥북 AI)` 또는 `(Gemini)`로 나옵니다.
 
-## 3. 앱 (app.js) 수정 가이드
-앱에 "로컬 모드"를 추가하려면 다음과 같은 기능을 구현해야 합니다.
+맥북 경로를 끄려면 `local-llm.js`에서 `LOCAL_LLM.ENABLED`를 `false`로 바꿉니다.
 
-### UI 변경
-1. **설정 화면**에 'AI 공급자' 선택지 추가 (Google Gemini / Local Ollama)
-2. **Ollama 서버 주소** 입력 필드 추가 (기본값: `http://localhost:11434`)
-3. **모델 이름** 입력 필드 추가 (기본값: `llama3.2-vision`)
+## 3. 맥북 쪽 설정 (2026-11-17 적용됨)
 
-### 코드 로직 (`callOllamaOCR` 함수 예시)
-Ollama API 포맷에 맞춰 전송해야 합니다.
+| 항목 | 내용 |
+|---|---|
+| HTTPS 경로 | `tailscale serve --bg --https=443 --set-path=/ollama http://127.0.0.1:11435` |
+| Host 재작성 프록시 | `~/Works/LocalLLM/ollama_host_proxy.py`, LaunchAgent `com.foxibear.ollama-proxy` |
+| CORS 허용 | `OLLAMA_ORIGINS=https://bioman93.github.io` (LaunchAgent `com.ollama.origins`) |
+| 모델 상주 | `OLLAMA_KEEP_ALIVE=-1` |
 
-```javascript
-async function callOllamaOCR(base64Image) {
-    const url = localStorage.getItem('ollama_url') || 'http://localhost:11434';
-    const model = localStorage.getItem('ollama_model') || 'llama3.2-vision';
-    
-    // 프롬프트 구성 (영어 권장)
-    const prompt = "Analyze this receipt/price tag. Return JSON with total and currency.";
+**프록시가 필요한 이유:** Ollama는 127.0.0.1에만 열려 있을 때 낯선 호스트 이름(`*.ts.net`)이 붙은 요청을 403으로 거부합니다. DNS 리바인딩 공격을 막기 위한 동작입니다. 그래서 프록시가 Host 헤더만 `localhost`로 바꿔 Ollama에 넘깁니다.
 
-    const response = await fetch(`${url}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: model,
-            prompt: prompt,
-            images: [base64Image], // Base64 그대로 전송
-            stream: false,         // 한번에 받기
-            format: "json"         // JSON 모드 (지원 모델만)
-        })
-    });
+**프록시의 접근 제한 (2026-11-17 보안 검토):** 프록시가 Host를 바꾸면 Ollama 자체의 방어가 무력화되므로, 프록시가 아래 세 가지를 직접 검사합니다.
+- **Host**: `macbookpro.tailfbbdb4.ts.net`만 받습니다. DNS 리바인딩 공격을 막습니다.
+- **사용자**: `tailscale serve`가 붙이는 `Tailscale-User-Login`이 본인 계정이어야 합니다. 이 값은 Tailscale이 직접 채우므로 위조할 수 없습니다.
+- **경로**: `GET /api/version`, `POST /api/chat`과 각각의 프리플라이트(OPTIONS)만 통과시킵니다. 모델 목록 조회·삭제·다운로드는 차단합니다.
 
-    return await response.json();
-}
-```
+## 4. 사용 조건과 제약
 
-## 4. 장단점 비교
-| 구분 | Gemini (현재) | Ollama (로컬) |
-| :--- | :--- | :--- |
-| **비용** | 무료 (하루 제한 있음) | **완전 무료 (무제한)** |
-| **속도** | 빠름 (2.5 Flash 기준) | PC 성능에 따라 다름 (GPU 필수) |
-| **접근성** | 어디서나 접속 가능 | **같은 와이파이 내에서만 가능** (외부 접속 시 복잡) |
-| **설정** | 배포만 하면 끝 | 각 PC마다 CORS 설정 필요 |
+- **폰에서 Tailscale 앱이 켜져 있어야 합니다.** 꺼져 있으면 3초 안에 Gemini로 넘어갑니다.
+- **맥북이 켜져 있고 잠자기가 아니어야 합니다.** 전원을 연결하고 뚜껑을 열어 둡니다.
+- **`standalone.html`을 파일로 열면 항상 Gemini를 씁니다.** 파일로 열면 페이지 출처가 `null`이라 CORS가 허용되지 않기 때문입니다.
+- **Chrome에서 처음 호출할 때 권한 확인 창이 뜰 수 있습니다.** 공개 사이트가 사설망 주소(100.x)를 호출하는 것이라서 "로컬 네트워크 접근" 허용을 물을 수 있습니다. 이때 허용해야 맥북 경로가 동작합니다.
 
----
-**💡 제안**: 
-앱 설정을 복잡하게 만들지 않으려면, 현재의 `Code.gs` 방식은 그대로 두고(외부용), **"집에서 쓸 때"를 위한 [고급 설정]** 메뉴를 만들어 Ollama 주소를 입력받게 하는 것이 좋습니다.
-원하신다면 이 기능을 `app.js`에 바로 추가해 드릴 수 있습니다.
+## 5. 시험 결과 (2026-11-17, M5 Pro 48GB, qwen3.8:27b)
+
+| 입력 | 결과 | 소요 |
+|---|---|---|
+| 유로 가격표 `€ 2,90` | total 2.9, currency € | 7.8초 (HTTPS 경유, 이미지 원본) |
+| 일본 편의점 영수증 (4품목, 합계 ¥968) | 상호·날짜·합계·결제수단 정확, 품목 한국어 번역 | 8.6초 |
+| 태국 가격표 `฿ 120` (앱 경로, 브라우저) | THB 120 | 1.8초 |
+| 맥북 도달 불가 (호스트 없음 / 무응답) | Gemini로 전환 | 0.0초 / 3.0초 |
+
+## 6. 비교
+
+| 구분 | 맥북 Ollama | Gemini |
+|---|---|---|
+| 비용·한도 | 무료, 한도 없음 | 무료, 하루 한도 있음 |
+| 사진 데이터 | 내 맥북에만 감 | 구글로 전송 |
+| 속도 | 2~9초 (시험 기준) | 빠름 |
+| 해외에서 | 집 맥북과 폰 Tailscale 상태에 좌우됨 | 항상 동작 |
