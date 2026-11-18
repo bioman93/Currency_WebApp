@@ -1753,7 +1753,7 @@ async function scanPriceTag(file) {
 
         if (!result.success || !result.data) {
             console.error("OCR Failed:", result);
-            throw new Error((result.error || '분석 실패') + (result.details ? "\nDetails:\n" + result.details : ""));
+            throw new Error(describeOCRFailure(result));
         }
 
         const data = result.data;
@@ -1767,10 +1767,10 @@ async function scanPriceTag(file) {
         if (amount) {
             applyScannedAmount(code, amount);
         } else {
-            alert("가격 정보를 찾을 수 없습니다.");
+            alert("사진에서 가격을 찾지 못했습니다. 가격이 잘 보이게 다시 찍거나 금액을 직접 입력해 주세요.");
         }
     } catch (e) {
-        alert("오류: " + e.message);
+        alert(e.message);
     } finally {
         elements.cameraBtn.innerHTML = originalText;
         elements.cameraBtn.disabled = false;
@@ -1790,7 +1790,10 @@ async function scanReceipt(file, inputEl) {
         const result = await callOCR(base64Image, 'receipt');
 
         if (!result.success || !result.data) {
-            throw new Error((result.error || '분석 실패') + (result.details ? "\n" + result.details : ""));
+            throw new Error(describeOCRFailure(result));
+        }
+        if (!hasReadableTotal(result)) {
+            throw new Error('영수증에서 금액을 찾지 못했습니다. 영수증 전체가 잘 보이게 다시 찍어 주세요.');
         }
 
         const data = result.data;
@@ -1855,7 +1858,7 @@ async function scanReceipt(file, inputEl) {
             });
         }
     } catch (e) {
-        if (elements.receiptStatus) elements.receiptStatus.textContent = "❌ 오류: " + e.message;
+        if (elements.receiptStatus) elements.receiptStatus.textContent = "❌ " + e.message;
     } finally {
         if (inputEl) inputEl.value = '';
     }
@@ -1867,13 +1870,34 @@ async function callOCR(base64Image, mode) {
         const started = Date.now();
         try {
             const result = await callLocalOCR(base64Image, mode);
-            console.log(`[OCR] 맥북 로컬 LLM 사용 (${((Date.now() - started) / 1000).toFixed(1)}초)`);
-            return result;
+            const seconds = ((Date.now() - started) / 1000).toFixed(1);
+            if (hasReadableTotal(result)) {
+                console.log(`[OCR] 맥북 로컬 LLM 사용 (${seconds}초)`);
+                return result;
+            }
+            // 맥북 모델이 가격을 못 읽었으면 Gemini에게 한 번 더 맡긴다
+            console.warn(`[OCR] 맥북 로컬 LLM이 가격을 읽지 못함 (${seconds}초) → Gemini로 재시도`);
         } catch (e) {
             console.warn(`[OCR] 맥북 로컬 LLM 실패 → Gemini로 전환: ${e.message}`);
         }
     }
     return callGeminiOCR(base64Image, mode);
+}
+
+// 판독 결과에 0보다 큰 금액이 있는가 (모델이 못 읽으면 total 0을 돌려준다)
+function hasReadableTotal(result) {
+    const total = result && result.data ? Number(String(result.data.total).replace(/[^\d.-]/g, '')) : NaN;
+    return Number.isFinite(total) && total > 0;
+}
+
+// 판독 실패를 사용자에게 보여줄 짧은 문장으로. 모델별 상세 로그는 콘솔에만 남긴다.
+function describeOCRFailure(result) {
+    if (result && result.details) console.warn('[OCR] 판독 실패 상세:\n' + result.details);
+    const details = (result && (result.details || result.error)) || '';
+    if (/429|Quota|사용량 초과/i.test(details)) {
+        return 'AI 사용량 한도를 넘었습니다. 잠시 후 다시 시도하거나 금액을 직접 입력해 주세요.';
+    }
+    return 'AI가 사진을 판독하지 못했습니다. 가격이 잘 보이게 다시 찍거나 금액을 직접 입력해 주세요.';
 }
 
 // 판독에 쓴 엔진을 사람이 읽는 이름으로

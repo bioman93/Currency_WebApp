@@ -21,8 +21,8 @@ const LOCAL_LLM = {
 
 // 프롬프트는 backend/Code.gs(Gemini)와 같은 문구를 쓴다. 결과 형식을 두 경로에서 맞추기 위해서다.
 const LOCAL_OCR_PROMPTS = {
-    receipt: "Analyze this receipt image. Return a JSON object with these fields: store (string), date (YYYY-MM-DD), total (number), currency (string - extract symbol like $, ¥, € or code), paymentMethod (string), items (array of {name, price}). Rule: Translate item names to Korean.",
-    price_tag: "Analyze this price tag image. Return a JSON object with fields: 'total' (number) and 'currency' (string). Rules: 1. Extract the currency symbol EXACTLY as seen (e.g. ¥, $, €, ฿, ₩). 2. If no symbol is visible, try to infer ISO code. 3. Return only the numeric value for total. 4. Ignore other text."
+    receipt: "Analyze this receipt image. Return a JSON object with these fields: store (string), date (YYYY-MM-DD), total (number), currency (string - extract symbol like $, ¥, € or code), paymentMethod (string), items (array of {name, price}). Rule: Translate item names to Korean. If the image is not a readable receipt, return total 0, empty strings and an empty items array.",
+    price_tag: "Analyze this price tag image. Return a JSON object with fields: 'total' (number) and 'currency' (string). Rules: 1. Extract the currency symbol EXACTLY as seen (e.g. ¥, $, €, ฿, ₩). 2. If no symbol is visible, try to infer ISO code. 3. Return only the numeric value for total. 4. Ignore other text. 5. If no price is readable, return total 0 and currency \"\"."
 };
 
 // Ollama 구조화 출력(JSON 스키마)으로 형식을 강제한다.
